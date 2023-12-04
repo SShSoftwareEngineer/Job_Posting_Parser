@@ -1,25 +1,38 @@
 INPUT_FILE = r'chat history.xlsx'
 
 SHEET_PROPERTIES = {
-    'messages': {'sheet_name': 'Messages',
-                 'col_names': ['Признак', 'Результат'],
+    'messages': {'sheet_name': 'Messages',  # Название вкладки в файле Excel
+                 'col_names': ['Дата', 'ID', 'Текст сообщения', 'Признак', 'Кол-во', 'Результат'],  # Названия колонок
                  },
+    'vacancy': {'sheet_name': 'Vacancies',
+                'col_names': ['Дата', 'ID', 'Должность', 'Компания', 'Локация', 'Опыт', 'Зарплата', 'Текст',
+                              'URL', 'HTML', 'Подписка'],
+                },
     'statistic': {'sheet_name': 'Statistic',
                   'col_names': ['Дата', 'ID', 'Вак-ий за 30 дн.', 'Канд-ты онлайн', 'Мин. з/п', 'Макс. з/п',
                                 'Откл-ов на 1 вак.', 'Вак. за нед.', 'Канд-ов за нед.'],
                   },
     'service': {'sheet_name': 'Service',
-                'col_names': ['Command'],
+                'col_names': ['Дата', 'ID', 'Команда'],
                 }
 }
 
 MESSAGE_TYPES = {
-    'vacancy': {
-        'type_str': 'Вакансии',
-        'sign': [
+    'vacancy': {  # Служебное название типа сообщения
+        'type_str': 'Вакансии',  # Отображаемый тип сообщения
+        'sign': [  # Сигнатуры для распознавания типа сообщения
             'Subscription:',
             'Подписка:'
-        ]
+        ],
+        'detail_sign': {  # Сигнатуры для распознавания деталей сообщения
+            ('', '', ''): 0,
+            (' в ',): 1,
+            ('', '', ''): 2,
+            ('года опыта', 'лет опыта', 'years of experience'): 3,
+            ('$',): 4,
+            ('https://djinni.co/jobs/',): 6,
+            ('Подписка:', 'Subscription:',): 7,
+        }
     },
     'statistic': {
         'type_str': 'Статистика',
