@@ -2,6 +2,7 @@ import sys
 from openpyxl import Workbook, load_workbook
 from openpyxl.worksheet import worksheet
 from const import INPUT_FILE, SHEET_PROPERTIES, MESSAGE_TYPES
+import re
 
 
 def create_or_clear_sheet(wb: Workbook, sheet_name: str) -> worksheet:
@@ -29,18 +30,16 @@ def set_message_sign(message: str) -> str:
 
 
 def get_detail_stat(message: str) -> list:
-    result = [''] * 7
-    message_parts = str(message).split('\n')
-    for part in message_parts:
-        for sign, index in MESSAGE_TYPES.get('statistic').get('detail_sign').items():
-            for item in sign:
-                if item in part:
-                    if index == 2:
-                        result[index], result[index + 1] = part.split('-')
-                        result[index] = result[index].replace(item, '').replace('$', '').strip()
-                        result[index + 1] = result[index + 1].strip()
-                    else:
-                        result[index] = part.replace(item, '').strip()
+    result = [None] * 7
+    for index, sign in MESSAGE_TYPES.get('statistic').get('detail_sign').items():
+        for item in sign:
+            param = re.search(item + r'\s([-+]?\d+[.,]?\d*)', message)  # +/-цифры./,цифры
+            if param:
+                result[index] = param.groups()[0]
+            else:
+                param = re.search(item + r'\s?\$(\d+-\d+)', message)  # $цифры-цифры
+                if param:
+                    result[index], result[index + 1] = param.groups()[0].split('-')
     for i, item in enumerate(result):
         try:
             result[i] = int(item)
@@ -53,14 +52,38 @@ def get_detail_stat(message: str) -> list:
 
 
 def get_detail_vacancy(message: str) -> list:
-    result = [''] * 8
+    result = [None] * 8
     message_parts = str(message).split('\n')
-
-    for part in message_parts:
-        for sign, index in MESSAGE_TYPES.get('vacancy').get('detail_sign').items():
-            for item in sign:
-                if item in part:
-                    result[index] = part.replace(item, '').strip()
+    for index, sign in MESSAGE_TYPES.get('vacancy').get('detail_sign').items():
+        parse_string = ''
+        parse_string = message_parts[0] if index in [0, 1] else parse_string
+        parse_string = message_parts[1] if index in [2, 3, 4] else parse_string
+        parse_string = message_parts[-2] if index == 6 else parse_string
+        parse_string = message_parts[-1] if index == 7 else parse_string
+        for item in sign:
+            match = None
+            if index == 0:
+                match = re.search(r'(.*)' + item, parse_string)
+                result[index] = match.group(1) if match else parse_string
+            if index == 1:
+                match = re.search(item + r'(.*)', parse_string)
+            if index == 2:
+                match = re.search(r'(.*)' + item, parse_string)
+            if index == 3:
+                match = re.search(r'.*, (\d+) ' + item, parse_string)
+                if not match:
+                    match = re.search(r'.*, (' + item + '), .*', parse_string)
+                if not match:
+                    match = re.search(r', (' + item + ')', parse_string)
+            if index == 4:
+                match = re.search(r'.*' + item + '(\d+.*)', parse_string)
+            if index == 6:
+                match = re.search(r'(' + item + r'.*)', parse_string)
+            if index == 7:
+                match = re.search(item + r' (.*)', parse_string)
+            if index in [1, 2, 3, 4, 6, 7]:
+                result[index] = match.group(1) if match else result[index]
+        result[5] = '\n'.join(message_parts[2:-2])
     return result
 
 
@@ -131,7 +154,7 @@ def main():
                 detail_vac.extend([row[0].value, row[1].value])
                 detail_vac.extend(get_detail_vacancy(item))
                 ws_vac.append(detail_vac)
-                if 'None' not in map(str, detail_vac):
+                if 'None' not in map(str, detail_vac[0:5]+detail_vac[7:]):
                     row[5].value = 'Успешно'
                     report.get(MESSAGE_TYPES.get('vacancy').get('type_str'))[1] += 1
                 detail_vac.clear()
