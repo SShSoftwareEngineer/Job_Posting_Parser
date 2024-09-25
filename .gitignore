@@ -166,3 +166,4 @@ Support Materials/
 #.idea/
 /pyvenv.cfg
 *.xlsx
+/notes.txt

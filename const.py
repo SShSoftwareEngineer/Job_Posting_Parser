@@ -1,12 +1,14 @@
 INPUT_FILE = r'chat history.xlsx'
 
+URL_TEMPLATE = 'https://djinni.co/jobs/'
+
 SHEET_PROPERTIES = {
     'messages': {'sheet_name': 'Messages',  # Название вкладки в файле Excel
                  'col_names': ['Дата', 'ID', 'Текст сообщения', 'Признак', 'Кол-во', 'Результат'],  # Названия колонок
                  },
     'vacancy': {'sheet_name': 'Vacancies',
                 'col_names': ['Дата', 'ID', 'Должность', 'Компания', 'Локация', 'Опыт', 'Зарплата', 'Текст',
-                              'URL', 'Подписка', 'HTML'],
+                              'URL', 'Подписка', 'Заголовок', 'Доп. инф.', 'Текст'],
                 },
     'statistic': {'sheet_name': 'Statistic',
                   'col_names': ['Дата', 'ID', 'Вак-ий за 30 дн.', 'Канд-ты онлайн', 'Мин. з/п', 'Макс. з/п',
@@ -18,6 +20,9 @@ SHEET_PROPERTIES = {
 }
 
 MESSAGE_TYPES = {
+    'messages': {
+        'type_str': 'Сообщения',
+    },
     'vacancy': {  # Служебное название типа сообщения
         'type_str': 'Вакансии',  # Отображаемый тип сообщения
         'sign': [  # Сигнатуры для распознавания типа сообщения
@@ -28,12 +33,16 @@ MESSAGE_TYPES = {
             0: [' в '],
             1: [' в '],
             2: [r', \d+ \.*', r', Без \.*', r', No \.*', r', ,\.*'],
-            3: ('год опыта', 'года опыта', 'лет опыта', 'Без опыта', 'year of experience', 'years of experience',
-                'No experience'),
+            3: ['год опыта', 'года опыта', 'лет опыта', 'Без опыта', 'year of experience', 'years of experience',
+                'No experience'],
             4: ['\$'],
-            6: ('https://djinni.co/jobs/',),
-            7: ('Подписка:', 'Subscription:',),
+            5: [],
+            6: [URL_TEMPLATE],
+            7: ['Подписка:', 'Subscription:'],
         }
+    },
+    'vacancy_parsing': {
+        'type_str': 'Парсинг',
     },
     'statistic': {
         'type_str': 'Статистика',
@@ -61,7 +70,4 @@ MESSAGE_TYPES = {
             '/add', '/list', '/help', '/pause', '/unpause',
         ]
     },
-    'messages': {
-        'type_str': 'Сообщения',
-    }
 }
