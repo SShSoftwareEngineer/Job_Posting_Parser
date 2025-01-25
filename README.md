@@ -1,3 +1,3 @@
 # Djinni.co Parser
 
-## Being finalized
+It is being finished
