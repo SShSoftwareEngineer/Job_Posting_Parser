@@ -1,3 +1,3 @@
-# Djinni.co Parser
+# Job Posting Parser
 
-It is being finished
+## It is being finished
