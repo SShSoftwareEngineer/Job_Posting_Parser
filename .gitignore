@@ -167,3 +167,5 @@ Support Materials/
 *.xlsx
 /notes.txt
 /pyvenv.cfg
+/notes.py
+/job_posting_parser_old.py
