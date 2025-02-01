@@ -169,3 +169,5 @@ Support Materials/
 /pyvenv.cfg
 /notes.py
 /job_posting_parser_old.py
+/.Database Scheme.vpp.lck
+/Database Scheme.vpp.*

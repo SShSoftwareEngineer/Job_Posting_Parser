@@ -1,7 +1,6 @@
-aiohttp
 telethon
 cryptg
+SQLAlchemy
 bs4
 openpyxl
-
-
+aiohttp
