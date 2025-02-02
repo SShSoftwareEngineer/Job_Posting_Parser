@@ -157,6 +157,7 @@ Lib/
 Scripts/
 Support Materials/
 .idea/
+Old/
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
@@ -171,3 +172,5 @@ Support Materials/
 /job_posting_parser_old.py
 /.Database Scheme.vpp.lck
 /Database Scheme.vpp.*
+/.session
+/const.py

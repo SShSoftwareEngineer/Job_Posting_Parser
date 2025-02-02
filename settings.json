@@ -1,0 +1,45 @@
+{
+  "message_type_patterns": {
+    "message": [],
+    "vacancy": [
+      "Subscription:",
+      "Подписка:"
+    ],
+    "statistic": [
+      "Статистика на Джині за запитом",
+      "Статистика на Djinni за запитом",
+      "Статистика на Джинне по запросу",
+      "Statistics on Djinni for the query"
+    ],
+    "service": [
+      "Активные подписки",
+      "Active Subscriptions",
+      "Поставил на паузу подписку",
+      "Снял с паузы подписку",
+      "Волшебные слова",
+      "Magic words",
+      "Подписку добавил",
+      "Новая команда у бота",
+      "Новая команда",
+      "Добавить все равно",
+      "/add",
+      "/delete all",
+      "/howmuch",
+      "/help",
+      "/list",
+      "/login",
+      "/pause",
+      "/start",
+      "/subscriptions",
+      "/salaries",
+      "/tips_on",
+      "/unpause"
+    ]
+  },
+  "message_type_title": {
+    "message": "Message",
+    "vacancy": "Vacancy",
+    "statistic": "Statistic",
+    "service": "Service"
+  }
+}
