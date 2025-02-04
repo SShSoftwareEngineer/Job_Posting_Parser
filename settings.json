@@ -36,6 +36,47 @@
       "/unpause"
     ]
   },
+  "parsing_signs": {
+    "message": {},
+    "vacancy": {
+      "1": [
+        "2"
+      ]
+    },
+    "statistic": {
+      "vacancies_in_30d": [
+        "Вакансій за 30 днів:",
+        "Вакансий за 30 дней:",
+        "Job ads for 30 days:"
+      ],
+      "candidates_online": [
+        "Кандидати онлайн:",
+        "Кандидаты онлайн:",
+        "Candidates online:"
+      ],
+      "salary": [
+        "Вилка по зарплаті:",
+        "Вилка по зарплате:",
+        "Salary range:"
+      ],
+      "responses_to_vacancies": [
+        "Відгуків на одну вакансію:",
+        "Откликов на одну вакансию:",
+        "Applications per job posting:"
+      ],
+      "vacancies_per_week": [
+        "Вакансій:",
+        "Вакансий:",
+        "Jobs:"
+      ],
+      "candidates_per_week": [
+        "Кандидатів:",
+        "Кандидатов:",
+        "Candidates:"
+      ]
+    },
+    "service": {}
+  },
   "message_type_title": {
     "message": "Message",
     "vacancy": "Vacancy",

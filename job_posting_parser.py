@@ -1,5 +1,4 @@
 import re
-import json
 from telethon import TelegramClient
 from telethon.sessions import MemorySession
 from telethon.tl.types import MessageEntityTextUrl
@@ -17,14 +16,6 @@ def load_env(file_path) -> dict:
                 env_vars[key] = value
     return env_vars
 
-
-def identify_message_type(message_text: str, patterns: dict) -> str:
-    result = 'unknown'
-    for message_type, pattern_list in patterns.items():
-        for pattern in pattern_list:
-            if pattern in message_text:
-                result = message_type
-    return result
 
 
 # def retrieve_url_from_message(message):
@@ -46,24 +37,22 @@ async def main():
     # Получаем новые сообщения
     bot = await client.get_entity(private_settings['BOT_NAME'])
     messages_list = client.iter_messages(bot.id, reverse=True, min_id=last_message_id,
-                                         wait_time=0.1)  # , limit=10
+                                         wait_time=0.1, limit=100)  # , limit=10
     # Определяем тип сообщений и сохраняем их в базу данных
     async for message in messages_list:
         source_message = SourceMessage(message_id=message.id,
                                        date=message.date,
-                                       text=message.text,
-                                       message_type=identify_message_type(message.text,
-                                                                          settings['message_type_patterns']))
+                                       text=message.text)
+        print(source_message.message_type)
         session.add(source_message)
     session.commit()
 
 
 if __name__ == '__main__':
-    # Загрузка данных программы
-    with open('settings.json', 'r', encoding='utf-8') as file:
-        settings = json.load(file)
     # Загрузка конфиденциальных параметров Telegram API
     private_settings = load_env('.env')
+    # Загрузка шаблонов базы данных из файла
+    read_db_data()
     # Подключение к базе данных
     session = connect_database()
     # Создание клиента для работы с Telegram
