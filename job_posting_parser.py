@@ -1,4 +1,3 @@
-import re
 from telethon import TelegramClient
 from telethon.sessions import MemorySession
 from telethon.tl.types import MessageEntityTextUrl
@@ -15,7 +14,6 @@ def load_env(file_path) -> dict:
                 key, value = line.strip().split('=')
                 env_vars[key] = value
     return env_vars
-
 
 
 # def retrieve_url_from_message(message):
@@ -37,14 +35,22 @@ async def main():
     # Получаем новые сообщения
     bot = await client.get_entity(private_settings['BOT_NAME'])
     messages_list = client.iter_messages(bot.id, reverse=True, min_id=last_message_id,
-                                         wait_time=0.1, limit=100)  # , limit=10
-    # Определяем тип сообщений и сохраняем их в базу данных
+                                         wait_time=0.1)  # , limit=10
     async for message in messages_list:
-        source_message = SourceMessage(message_id=message.id,
-                                       date=message.date,
-                                       text=message.text)
-        print(source_message.message_type)
+        # Определяем тип исходных сообщений
+        source_message = SourceMessage(message_id=message.id, date=message.date, text=message.text)
+        detail_messages = list()
+        match source_message.message_type:
+            case 'vacancy':
+                fragments = re.split(r'(.*(?:keyword|ss).*\n\n)', text)
+                detail_messages.append(VacancyMessage(source_message=source_message))
+            case 'statistic':
+                detail_messages.append(StatisticMessage(source_message=source_message))
+            case 'service':
+                detail_messages.append(ServiceMessage(source_message=source_message))
         session.add(source_message)
+        for detail_message in detail_messages:
+            session.add(detail_message)
     session.commit()
 
 
