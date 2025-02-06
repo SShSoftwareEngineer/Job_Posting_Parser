@@ -1,6 +1,6 @@
+import aiohttp
 from telethon import TelegramClient
-from telethon.sessions import MemorySession
-from telethon.tl.types import MessageEntityTextUrl
+# from telethon.sessions import MemorySession
 
 from database_handler import *
 
@@ -16,42 +16,52 @@ def load_env(file_path) -> dict:
     return env_vars
 
 
-# def retrieve_url_from_message(message):
-#     for entity in message.entities:
-#         if isinstance(entity, MessageEntityTextUrl):
-#             return entity.url
-#     return None
-#
-# def retrieve_url_from_message_text(text):
-#     url_pattern = r"https?://\S+"
-#     return re.findall(url_pattern, text)
-
-
 async def main():
     # Определяем ID последнего сообщения в базе данных
     last_message_id = 0
     if session.query(SourceMessage).count():
         last_message_id = max(map(lambda x: x[0], (session.query(SourceMessage.message_id))))
-    # Получаем новые сообщения
+    # Получаем новые сообщения из чата
     bot = await client.get_entity(private_settings['BOT_NAME'])
     messages_list = client.iter_messages(bot.id, reverse=True, min_id=last_message_id,
-                                         wait_time=0.1)  # , limit=10
-    async for message in messages_list:
-        # Определяем тип исходных сообщений
-        source_message = SourceMessage(message_id=message.id, date=message.date, text=message.text)
-        detail_messages = list()
-        match source_message.message_type:
-            case 'vacancy':
-                fragments = re.split(r'(.*(?:keyword|ss).*\n\n)', text)
-                detail_messages.append(VacancyMessage(source_message=source_message))
-            case 'statistic':
-                detail_messages.append(StatisticMessage(source_message=source_message))
-            case 'service':
-                detail_messages.append(ServiceMessage(source_message=source_message))
-        session.add(source_message)
-        for detail_message in detail_messages:
-            session.add(detail_message)
-    session.commit()
+                                         wait_time=0.1, limit=50)  # , limit=10
+    # Создаем сессию для работы с HTTP-запросами
+    timeout = aiohttp.ClientTimeout(total=20)  # Устанавливаем тайм-аут запроса
+    async with aiohttp.ClientSession(timeout=timeout) as http_session:
+        # Обрабатываем полученный список сообщений
+        async for message in messages_list:
+            # Определяем тип исходных сообщений
+            source_message = SourceMessage(message_id=message.id, date=message.date, text=message.text)
+            detail_messages = list()
+            # Создаем детальные сообщения в зависимости от типа исходного сообщения
+            match source_message.message_type:
+                case 'vacancy':
+                    # Разбиваем сообщение на отдельные вакансии
+                    vacancies = re.split(get_vacancy_pattern(), source_message.text + '\n\n')
+                    for vacancy in vacancies:
+                        if vacancy:
+                            # Извлекаем URL вакансии
+                            vacancy_url = re.search(f'{get_vacancy_url_pattern()}', vacancy).group(0)
+                            # Получаем HTML-код страницы вакансии
+                            try:
+                                async with http_session.get(vacancy_url) as response:
+                                    if response.status == 200:
+                                        vacancy_html = await response.text()
+                            except aiohttp.ClientError as e:
+                                vacancy_html = f'Error {e}'
+                            # Записываем сообщение о вакансии в сессию БД
+                            detail_messages.append(VacancyMessage(source_message=source_message, text=vacancy.strip(),
+                                                                  raw_html=vacancy_html.strip(' \n')))
+                case 'statistic':
+                    detail_messages.append(StatisticMessage(source_message=source_message))
+                case 'service':
+                    detail_messages.append(ServiceMessage(source_message=source_message))
+            # Записываем сообщения в сессию
+            session.add(source_message)
+            for detail_message in detail_messages:
+                session.add(detail_message)
+        # Сохраняем сообщения в базе данных
+        session.commit()
 
 
 if __name__ == '__main__':

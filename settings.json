@@ -2,8 +2,8 @@
   "message_type_patterns": {
     "message": [],
     "vacancy": [
-      "Subscription:",
-      "Подписка:"
+      "Subscription",
+      "Подписка"
     ],
     "statistic": [
       "Статистика на Джині за запитом",
@@ -39,8 +39,18 @@
   "parsing_signs": {
     "message": {},
     "vacancy": {
-      "1": [
-        "2"
+      "splitter": [
+        "Subscription",
+        "Подписка"
+      ],
+      "position, company": [
+        " в "
+      ],
+      "location": [
+        "(.+), "
+      ],
+      "experience": [
+        "(.+), "
       ]
     },
     "statistic": {

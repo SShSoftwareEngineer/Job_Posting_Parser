@@ -10,6 +10,7 @@ _DB_DATA = dict()
 _DB_DATA_FILE = 'settings.json'
 _NUMERIC_PATTERN = '[-+]?(?:\d+[.,]\d+|\d+|\.\d+)'
 _SALARY_PATTERN = f'\$?({_NUMERIC_PATTERN})-({_NUMERIC_PATTERN})'
+_VACANCY_URL_PATTERN = 'https?:\/\/djinni.co\/.*'
 _TABLE_NAMES = {'source_messages': 'source_msgs',
                 'vacancy_messages': 'vacancy_msg',
                 'statistic_messages': 'statistic_msgs',
@@ -51,6 +52,8 @@ class VacancyMessage(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{_TABLE_NAMES['source_messages']}.message_id'))
     source_message: Mapped[SourceMessage] = relationship(back_populates='vacancy_message')
+    text: Mapped[str] = mapped_column(Text, nullable=True)
+    raw_html: Mapped[str] = mapped_column(Text, nullable=True)
     position: Mapped[str] = mapped_column(String, nullable=True)
     company: Mapped[str] = mapped_column(String, nullable=True)
     location: Mapped[str] = mapped_column(String, nullable=True)
@@ -60,10 +63,27 @@ class VacancyMessage(Base):
     subscription: Mapped[str] = mapped_column(String, nullable=True)
     header: Mapped[str] = mapped_column(String, nullable=True)
     category: Mapped[str] = mapped_column(String, nullable=True)
-    text: Mapped[str] = mapped_column(Text, nullable=True)
 
     def __init__(self, **kw: Any):
         super().__init__(**kw)
+        vacancy_signs = _DB_DATA['parsing_signs']['vacancy']
+        self.position, self.company = self._set_position_company(vacancy_signs['position, company'])
+        self.location = self._set_location(vacancy_signs['location'])
+        self.experience = self._set_experience(vacancy_signs['experience'])
+        self.salary = self._set_salary(vacancy_signs['salary'])
+
+    def _set_position_company(self, splitter: str) -> tuple[str | None, str | None]:
+        parsing_str = self.text.split('\n')[0]
+        position = parsing_str.split(splitter)[0].strip()
+        company = parsing_str.split(splitter)[1].strip()
+        position = position if position else None
+        company = company if company else None
+        return position, company
+
+    def _set_location(self, pattern: str) -> str:
+        parsing_str = self.text.split('\n')[1]
+        result = re.search(pattern, parsing_str).group(0).strip()
+        return result if result else None
 
 
 class StatisticMessage(Base):
@@ -140,6 +160,14 @@ def read_db_data():
 
 def get_db_data():
     return _DB_DATA
+
+
+def get_vacancy_url_pattern():
+    return _VACANCY_URL_PATTERN
+
+
+def get_vacancy_pattern():
+    return f'([\s\S]*?(?:{"|".join(_DB_DATA["parsing_signs"]["vacancy"]["splitter"])}).*\n\n)'
 
 
 def convert_str_to_numeric(value: str) -> int | float | None:
