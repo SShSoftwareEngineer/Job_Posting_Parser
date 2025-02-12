@@ -41,16 +41,18 @@
     "vacancy": {
       "splitter": [
         "Subscription",
+        "__Подписка:__",
         "Подписка"
       ],
-      "position, company": [
-        " в "
-      ],
-      "location": [
-        "(.+), "
-      ],
-      "experience": [
-        "(.+), "
+      "position, company": " в ",
+      "location, experience": [
+        "год опыта",
+        "года опыта",
+        "лет опыта",
+        "Без опыта",
+        "year of experience",
+        "years of experience",
+        "No experience"
       ]
     },
     "statistic": {

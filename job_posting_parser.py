@@ -21,6 +21,9 @@ async def main():
     last_message_id = 0
     if session.query(SourceMessage).count():
         last_message_id = max(map(lambda x: x[0], (session.query(SourceMessage.message_id))))
+
+    last_message_id = max(10000, last_message_id)
+
     # Получаем новые сообщения из чата
     bot = await client.get_entity(private_settings['BOT_NAME'])
     messages_list = client.iter_messages(bot.id, reverse=True, min_id=last_message_id,
@@ -37,31 +40,40 @@ async def main():
             match source_message.message_type:
                 case 'vacancy':
                     # Разбиваем сообщение на отдельные вакансии
-                    vacancies = re.split(get_vacancy_pattern(), source_message.text + '\n\n')
+                    vacancies = re.split(get_vacancy_pattern(), source_message.text)
+                    # Обрабатываем вакансии
                     for vacancy in vacancies:
-                        if vacancy:
+                        if vacancy.strip('\n'):
                             # Извлекаем URL вакансии
                             vacancy_url = re.search(f'{get_vacancy_url_pattern()}', vacancy).group(0)
                             # Получаем HTML-код страницы вакансии
                             try:
                                 async with http_session.get(vacancy_url) as response:
-                                    if response.status == 200:
-                                        vacancy_html = await response.text()
+                                    match response.status:
+                                        case 200:
+                                            vacancy_html = await response.text()
+                                        case 404:
+                                            vacancy_html = '404 Not Found'
+                                        case _:
+                                            vacancy_html = f'Error {response.status}'
                             except aiohttp.ClientError as e:
                                 vacancy_html = f'Error {e}'
-                            # Записываем сообщение о вакансии в сессию БД
-                            detail_messages.append(VacancyMessage(source_message=source_message, text=vacancy.strip(),
-                                                                  raw_html=vacancy_html.strip(' \n')))
+                            # Сохраняем сообщение о вакансии в список
+                            detail_messages.append(
+                                VacancyMessage(source_message=source_message, text=vacancy.strip(' \n'),
+                                               raw_html=vacancy_html.strip(' \n')))
                 case 'statistic':
+                    # Создаем сообщение со статистикой
                     detail_messages.append(StatisticMessage(source_message=source_message))
                 case 'service':
+                    # Создаем сервисное сообщение
                     detail_messages.append(ServiceMessage(source_message=source_message))
-            # Записываем сообщения в сессию
+            # Записываем исходное и детальные сообщения в сессию
             session.add(source_message)
             for detail_message in detail_messages:
                 session.add(detail_message)
-        # Сохраняем сообщения в базе данных
-        session.commit()
+            # Сохраняем сообщения в базе данных
+            session.commit()
 
 
 if __name__ == '__main__':

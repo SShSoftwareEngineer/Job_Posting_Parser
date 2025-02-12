@@ -8,8 +8,9 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship,
 
 _DB_DATA = dict()
 _DB_DATA_FILE = 'settings.json'
-_NUMERIC_PATTERN = '[-+]?(?:\d+[.,]\d+|\d+|\.\d+)'
-_SALARY_PATTERN = f'\$?({_NUMERIC_PATTERN})-({_NUMERIC_PATTERN})'
+_NUMERIC_PATTERN = '([-+]?(?:\d*[.,]\d+|\d+))'  # '([-+]?(?:\d+[.,]\d+|\d+|\.\d+))'
+_SALARY_RANGE_PATTERN = f'\$?{_NUMERIC_PATTERN}-{_NUMERIC_PATTERN}'
+_SALARY_PATTERN = f'\$?{_NUMERIC_PATTERN}'
 _VACANCY_URL_PATTERN = 'https?:\/\/djinni.co\/.*'
 _TABLE_NAMES = {'source_messages': 'source_msgs',
                 'vacancy_messages': 'vacancy_msg',
@@ -57,8 +58,9 @@ class VacancyMessage(Base):
     position: Mapped[str] = mapped_column(String, nullable=True)
     company: Mapped[str] = mapped_column(String, nullable=True)
     location: Mapped[str] = mapped_column(String, nullable=True)
-    experience: Mapped[str] = mapped_column(String, nullable=True)
-    salary: Mapped[str] = mapped_column(String, nullable=True)
+    experience: Mapped[int] = mapped_column(Integer, nullable=True)
+    min_salary: Mapped[int] = mapped_column(Integer, nullable=True)
+    max_salary: Mapped[int] = mapped_column(Integer, nullable=True)
     url: Mapped[str] = mapped_column(String, nullable=True)
     subscription: Mapped[str] = mapped_column(String, nullable=True)
     header: Mapped[str] = mapped_column(String, nullable=True)
@@ -68,22 +70,64 @@ class VacancyMessage(Base):
         super().__init__(**kw)
         vacancy_signs = _DB_DATA['parsing_signs']['vacancy']
         self.position, self.company = self._set_position_company(vacancy_signs['position, company'])
-        self.location = self._set_location(vacancy_signs['location'])
-        self.experience = self._set_experience(vacancy_signs['experience'])
-        self.salary = self._set_salary(vacancy_signs['salary'])
+        self.location, self.experience, = (
+            self._set_location_experience(vacancy_signs['location, experience']))
+        self.min_salary, self.max_salary = self._set_salary(_SALARY_RANGE_PATTERN, _SALARY_PATTERN)
+        self.url = self._set_url(_VACANCY_URL_PATTERN)
+        self.subscription = self._set_subscription(vacancy_signs['splitter'])
 
     def _set_position_company(self, splitter: str) -> tuple[str | None, str | None]:
-        parsing_str = self.text.split('\n')[0]
-        position = parsing_str.split(splitter)[0].strip()
-        company = parsing_str.split(splitter)[1].strip()
-        position = position if position else None
-        company = company if company else None
+        parsing_str = self.text.split('\n')[0].strip(' *_')
+        position, company = None, None
+        if splitter in parsing_str:
+            position = parsing_str.split(splitter)[0].strip(' *_')
+            company = parsing_str.split(splitter)[1].strip(' *_')
+        else:
+            position = parsing_str
         return position, company
 
-    def _set_location(self, pattern: str) -> str:
-        parsing_str = self.text.split('\n')[1]
-        result = re.search(pattern, parsing_str).group(0).strip()
-        return result if result else None
+    def _set_location_experience(self, pattern: list[str]) -> tuple[str, int | float | None]:
+        parsing_str = self.text.split('\n')[1].strip(' *_')
+        location, experience = None, None
+        matching = re.search(f'(.+), {_NUMERIC_PATTERN}?\s?({"|".join(pattern)})', parsing_str)
+        if matching:
+            if len(matching.groups()) in [2, 3]:
+                location = matching.group(1)
+            if len(matching.groups()) == 2 and matching.group(3)[0:1].isupper():
+                experience = 0
+            if len(matching.groups()) == 3:
+                experience = str_to_numeric(matching.group(2))
+        return location, experience
+
+    def _set_salary(self, range_pattern, salary_pattern) -> tuple[int | float | None, int | float | None]:
+        parsing_str = self.text.split('\n')[1].strip(' *_')
+        min_salary, max_salary = None, None
+        matching = re.search(f'{range_pattern}\Z', parsing_str)
+        if matching:
+            if len(matching.groups()) == 2:
+                min_salary = matching.group(1)
+                max_salary = matching.group(2)
+                return str_to_numeric(min_salary), str_to_numeric(max_salary)
+        matching = re.search(f'{salary_pattern}\Z', parsing_str)
+        if matching:
+            min_salary = matching.group(1)
+            max_salary = min_salary
+        return str_to_numeric(min_salary), str_to_numeric(max_salary)
+
+    def _set_url(self, pattern: str) -> str:
+        url = None
+        matching = re.search(pattern, self.text)
+        if matching:
+            url = matching.group(0)
+        return url
+
+    def _set_subscription(self, pattern: list[str]) -> str | None:
+        parsing_str = self.text.split('\n')[-1]
+        subscription = None
+        matching = re.sub(f'{"|".join(pattern)}', '', parsing_str)
+        if matching:
+            subscription = matching.strip('\"\' *_`')
+        return subscription
 
 
 class StatisticMessage(Base):
@@ -116,16 +160,16 @@ class StatisticMessage(Base):
         pattern = f"(?:({'|'.join(patterns)}):?\s+)({_NUMERIC_PATTERN})"
         match = re.search(pattern, self.source_message.text)
         if match and len(match.groups()) >= 2:
-            result = convert_str_to_numeric(match.group(2))
+            result = str_to_numeric(match.group(2))
         return result
 
     def _set_salary(self, patterns: list) -> list[int | float]:
         min_salary, max_salary = None, None
-        pattern = f"(?:({'|'.join(patterns)}):?\s+){_SALARY_PATTERN}"
+        pattern = f"(?:({'|'.join(patterns)}):?\s+){_SALARY_RANGE_PATTERN}"
         match = re.search(pattern, self.source_message.text)
         if match and len(match.groups()) >= 3:
-            min_salary = convert_str_to_numeric(match.group(2))
-            max_salary = convert_str_to_numeric(match.group(3))
+            min_salary = str_to_numeric(match.group(2))
+            max_salary = str_to_numeric(match.group(3))
         return [min_salary, max_salary]
 
     def _set_parsing_status(self):
@@ -167,18 +211,19 @@ def get_vacancy_url_pattern():
 
 
 def get_vacancy_pattern():
-    return f'([\s\S]*?(?:{"|".join(_DB_DATA["parsing_signs"]["vacancy"]["splitter"])}).*\n\n)'
+    return f'([\s\S]*?(?:{"|".join(_DB_DATA["parsing_signs"]["vacancy"]["splitter"])}).*)(?:\n\n)?'
 
 
-def convert_str_to_numeric(value: str) -> int | float | None:
+def str_to_numeric(value: str | None) -> int | float | None:
     result = None
-    try:
-        if "." in value or "," in value:
-            result = float(value.replace(",", "."))
-        else:
-            result = int(value)
-    except (ValueError, AttributeError):
-        pass
+    if value is not None:
+        try:
+            if "." in value or "," in value:
+                result = float(value.replace(",", "."))
+            else:
+                result = int(value)
+        except (ValueError, AttributeError):
+            pass
     if result is not None and not result % 1:
         result = int(result)
     return result
