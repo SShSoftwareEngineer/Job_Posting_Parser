@@ -1,6 +1,6 @@
 telethon
 cryptg
 SQLAlchemy
-bs4
+beautifulsoup4
 openpyxl
 aiohttp

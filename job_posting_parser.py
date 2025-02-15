@@ -53,7 +53,7 @@ async def main():
                                         case 200:
                                             vacancy_html = await response.text()
                                         case 404:
-                                            vacancy_html = '404 Not Found'
+                                            vacancy_html = 'Error 404 Not Found'
                                         case _:
                                             vacancy_html = f'Error {response.status}'
                             except aiohttp.ClientError as e:
@@ -90,3 +90,7 @@ if __name__ == '__main__':
                                                                               private_settings['PASSWORD']))
     with client:
         client.loop.run_until_complete(main())
+
+# TODO: Отчет об обработанных сообщениях
+# TODO: Unit тесты
+# TODO: Экспорт всех результатов в Excel
