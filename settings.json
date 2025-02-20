@@ -1,8 +1,9 @@
 {
-  "message_type_patterns": {
-    "message": [],
+  "message_signs": {
+    "source": [],
     "vacancy": [
       "Subscription",
+      "__Подписка:__",
       "Подписка"
     ],
     "statistic": [
@@ -37,66 +38,161 @@
       "/unpause"
     ]
   },
-  "parsing_signs": {
-    "message": {},
+  "message_configs": {
+    "source": {},
     "vacancy": {
-      "splitter": [
-        "Subscription",
-        "__Подписка:__",
-        "Подписка"
-      ],
-      "position_company": " в ",
-      "location_experience": [
-        "год опыта",
-        "года опыта",
-        "лет опыта",
-        "Без опыта",
-        "year of experience",
-        "years of experience",
-        "No experience"
-      ]
+      "text_parsing_signs": {
+        "position_company": " в ",
+        "location_experience": [
+          "год опыта",
+          "года опыта",
+          "лет опыта",
+          "Без опыта",
+          "year of experience",
+          "years of experience",
+          "No experience"
+        ],
+        "subscription": [
+          "Subscription",
+          "__Подписка:__",
+          "Подписка"
+        ],
+        "splitter_pattern": [
+          "Subscription",
+          "__Подписка:__",
+          "Подписка"
+        ]
+      },
+      "html_parsing_signs": {
+        "html_classes": {
+          "description": "mb-4 job-post__description",
+          "job_card": "card card-body",
+          "ul_tags": "list-unstyled"
+        },
+        "candidate_locations": [
+          "Countries where we consider candidates"
+        ],
+        "domain": [
+          "Domain:"
+        ],
+        "offices": [
+          "Office:"
+        ]
+      },
+      "excel_col_name": {
+        "field": "name"
+      }
     },
     "statistic": {
-      "vacancies_in_30d": [
-        "Вакансий опубликовано",
-        "Вакансии онлайн",
-        "Вакансій за 30 днів",
-        "Вакансий за 30 дней",
-        "Job ads for 30 days"
-      ],
-      "candidates_online": [
-        "Кандидатов в поиске",
-        "Кандидати онлайн",
-        "Кандидаты онлайн",
-        "Candidates online"
-      ],
-      "salary": [
-        "Вилка по зарплаті",
-        "Вилка по зарплате",
-        "Salary range"
-      ],
-      "responses_to_vacancies": [
-        "Відгуків на одну вакансію",
-        "Откликов на одну вакансию",
-        "Applications per job posting"
-      ],
-      "vacancies_per_week": [
-        "Вакансій",
-        "Вакансий",
-        "Jobs"
-      ],
-      "candidates_per_week": [
-        "Кандидатів",
-        "Кандидатов",
-        "Candidates"
-      ]
+      "text_parsing_signs": {
+        "vacancies_in_30d": [
+          "Вакансий опубликовано",
+          "Вакансии онлайн",
+          "Вакансій за 30 днів",
+          "Вакансий за 30 дней",
+          "Job ads for 30 days"
+        ],
+        "candidates_online": [
+          "Кандидатов в поиске",
+          "Кандидати онлайн",
+          "Кандидаты онлайн",
+          "Candidates online"
+        ],
+        "salary": [
+          "Вилка по зарплаті",
+          "Вилка по зарплате",
+          "Salary range"
+        ],
+        "responses_to_vacancies": [
+          "Відгуків на одну вакансію",
+          "Откликов на одну вакансию",
+          "Applications per job posting"
+        ],
+        "vacancies_per_week": [
+          "Вакансій",
+          "Вакансий",
+          "Jobs"
+        ],
+        "candidates_per_week": [
+          "Кандидатів",
+          "Кандидатов",
+          "Candidates"
+        ]
+      }
     },
-    "service": {}
+    "service": {
+    }
   },
-  "message_type_title": {
-    "message": "Message",
-    "vacancy": "Vacancy",
-    "statistic": "Statistic",
-    "service": "Service"
+  "export_to_excel": {
+    "source": {
+      "sheet_name": "Source",
+      "col_names": {
+        "message_id": "Message ID",
+        "date": "Date, time",
+        "message_type": "Type",
+        "text": "Text"
+      },
+      "sql": "INSERT INTO source (message_id, date, message_type, text) VALUES (?, ?, ?, ?)"
+    },
+    "vacancy": {
+      "sheet_name": "Vacancy",
+      "col_names": {
+        "message_id": "Message ID",
+        "date": "Date, time",
+        "text": "Telegram Text",
+        "t_position": "Position",
+        "company": "Company",
+        "location": "Location",
+        "t_experience": "Experience",
+        "min_salary": "Min Salary",
+        "max_salary": "Max Salary",
+        "url": "URL",
+        "subscription": "Subscription",
+        "raw_html": "Raw HTML",
+        "h_position": "Position",
+        "description": "Job Description",
+        "lingvo": "Lingvo",
+        "h_experience": "Experience",
+        "work_type": "Work Type",
+        "candidate_locations": "Candidate Locations",
+        "main_tech": "Main Technology",
+        "tech_stack": "Tech Stack",
+        "domain": "Domain",
+        "company_type": "Company Type",
+        "offices": "Company Offices",
+        "notes": "Notes"
+      },
+      "sql": ""
+    },
+    "statistic": {
+      "sheet_name": "Statistic",
+      "col_names": {
+        "message_id": "Message ID",
+        "date": "Date, time",
+        "vacancies_in_30d": "Vacancies in 30 days",
+        "candidates_online": "Candidates online",
+        "min_salary": "Min Salary",
+        "max_salary": "Max Salary",
+        "responses_to_vacancies": "Responses to vacancies",
+        "vacancies_per_week": "Vacancies per week",
+        "candidates_per_week": "Candidates per week"
+      },
+      "sql": ""
+    },
+    "service": {
+      "sheet_name": "Service",
+      "col_names": {
+        "message_id": "Message ID",
+        "date": "Date, time",
+        "text": "Text"
+      },
+      "sql": "SELECT message_id, date, text FROM target_table"
+    }
+  },
+  "re_patterns": {
+    "url": "https?:\/\/djinni.co\/.*",
+    "numeric": "([-+]?(?:\\d*[.,]\\d+|\\d+))",
+    "salary": "\\$?{numeric_pattern}",
+    "salary_range": "\\$?{numeric_pattern}-{numeric_pattern}"
   }
 }

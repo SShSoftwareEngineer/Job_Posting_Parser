@@ -21,13 +21,10 @@ async def main():
     last_message_id = 0
     if session.query(SourceMessage).count():
         last_message_id = max(map(lambda x: x[0], (session.query(SourceMessage.message_id))))
-
-    last_message_id = max(10000, last_message_id)
-
     # Получаем новые сообщения из чата
     bot = await client.get_entity(private_settings['BOT_NAME'])
     messages_list = client.iter_messages(bot.id, reverse=True, min_id=last_message_id,
-                                         wait_time=0.1, limit=50)  # , limit=10
+                                         wait_time=0.1, limit=20)  # , limit=10
     # Создаем сессию для работы с HTTP-запросами
     timeout = aiohttp.ClientTimeout(total=20)  # Устанавливаем тайм-аут запроса
     async with aiohttp.ClientSession(timeout=timeout) as http_session:
@@ -40,12 +37,12 @@ async def main():
             match source_message.message_type:
                 case 'vacancy':
                     # Разбиваем сообщение на отдельные вакансии
-                    vacancies = re.split(get_vacancy_pattern(), source_message.text)
+                    vacancies = re.split(config.get_vacancy_pattern(), source_message.text)
                     # Обрабатываем вакансии
                     for vacancy in vacancies:
                         if vacancy.strip('\n'):
                             # Извлекаем URL вакансии
-                            vacancy_url = re.search(f'{get_vacancy_url_pattern()}', vacancy).group(0)
+                            vacancy_url = re.search(config.get_url_pattern(), vacancy)[0]
                             # Получаем HTML-код страницы вакансии
                             try:
                                 async with http_session.get(vacancy_url) as response:
@@ -59,6 +56,8 @@ async def main():
                             except aiohttp.ClientError as e:
                                 vacancy_html = f'Error {e}'
                             # Сохраняем сообщение о вакансии в список
+                            if re.search(r'Your IP address.*?has been blocked', vacancy_html):
+                                vacancy_html = 'Error 403 Forbidden or 429 Too Many Requests. ' + vacancy_html
                             detail_messages.append(
                                 VacancyMessage(source_message=source_message, text=vacancy.strip(' \n'),
                                                raw_html=vacancy_html.strip(' \n')))
@@ -79,10 +78,6 @@ async def main():
 if __name__ == '__main__':
     # Загрузка конфиденциальных параметров Telegram API
     private_settings = load_env('.env')
-    # Загрузка шаблонов базы данных из файла
-    read_db_data()
-    # Подключение к базе данных
-    session = connect_database()
     # Создание клиента для работы с Telegram
     client = (TelegramClient(session='.session',  # MemorySession(),
                              api_id=private_settings['APP_API_ID'],
@@ -94,3 +89,4 @@ if __name__ == '__main__':
 # TODO: Отчет об обработанных сообщениях
 # TODO: Unit тесты
 # TODO: Экспорт всех результатов в Excel
+# TODO: Дописать функцию статуса парсинга вакансий

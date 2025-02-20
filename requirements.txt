@@ -4,3 +4,5 @@ SQLAlchemy
 beautifulsoup4
 openpyxl
 aiohttp
+pandas
+pydantic
