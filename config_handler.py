@@ -5,10 +5,10 @@ from pydantic import ValidationError
 
 _CONFIG_FILE = 'settings.json'
 
-TABLE_NAMES = {'source_messages': 'source_msgs',
-               'vacancy_messages': 'vacancy_msg',
-               'statistic_messages': 'statistic_msgs',
-               'service_messages': 'service_msgs'}
+TABLE_NAMES = {'vacancy': 'vacancy_msgs',
+               'statistic': 'statistic_msgs',
+               'service': 'service_msgs',
+               'source': 'source_msgs'}
 
 
 # Классы конфигурации pydantic
@@ -54,8 +54,9 @@ class RePatternsConfig(BaseModel):
 
 class ExportToExcelConfig(BaseModel):
     sheet_name: str
-    col_names: Dict[str, str]
     sql: str
+    columns: List[str]
+    column_names: List[str]
 
 
 class Config(BaseModel):
@@ -69,6 +70,8 @@ class Config(BaseModel):
                                                                   self.re_patterns.numeric)
         self.re_patterns.salary_range = self.re_patterns.salary_range.replace('{numeric_pattern}',
                                                                               self.re_patterns.numeric)
+        for key in TABLE_NAMES.keys():
+            self.export_to_excel[key].sql = self.get_export_to_excel_sql(key)
 
     def get_splitter_pattern(self) -> List[str]:
         return self.message_configs['vacancy'].text_parsing_signs.splitter_pattern
@@ -79,6 +82,14 @@ class Config(BaseModel):
     def get_vacancy_pattern(self) -> str:
         patterns = self.message_configs['vacancy'].text_parsing_signs.splitter_pattern
         return fr'([\s\S]*?(?:{"|".join(patterns)}).*)(?:\n\n)?'
+
+    def get_export_to_excel_sql(self, table_name: str) -> str:
+        sql = f"SELECT {', '.join(self.export_to_excel[table_name].columns)} FROM {table_name}"
+        if table_name != 'source':
+            sql += f" JOIN source ON source.message_id = {table_name}.message_id"
+        for key, value in TABLE_NAMES.items():
+            sql = sql.replace(key, value)
+        return sql
 
 
 # Загрузка конфигурации базы данных из файла

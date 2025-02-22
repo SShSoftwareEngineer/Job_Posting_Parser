@@ -1,5 +1,8 @@
+from collections import Counter
 import aiohttp
 from telethon import TelegramClient
+from tqdm.asyncio import tqdm
+
 # from telethon.sessions import MemorySession
 
 from database_handler import *
@@ -25,19 +28,22 @@ async def main():
     bot = await client.get_entity(private_settings['BOT_NAME'])
     messages_list = client.iter_messages(bot.id, reverse=True, min_id=last_message_id,
                                          wait_time=0.1, limit=20)  # , limit=10
-    # Создаем сессию для работы с HTTP-запросами
+    # Создаем HTTP сессию для работы с HTTP-запросами
     timeout = aiohttp.ClientTimeout(total=20)  # Устанавливаем тайм-аут запроса
     async with aiohttp.ClientSession(timeout=timeout) as http_session:
         # Обрабатываем полученный список сообщений
-        async for message in messages_list:
+        async for message in tqdm(messages_list):
+            message_types['source'] += 1
             # Определяем тип исходных сообщений
-            source_message = SourceMessage(message_id=message.id, date=message.date, text=message.text)
-            detail_messages = list()
+            source = SourceMessage(message_id=message.id, date=message.date, text=message.text)
+            if source.message_type is None:
+                message_types['unknown'] += 1
+            details = list()
             # Создаем детальные сообщения в зависимости от типа исходного сообщения
-            match source_message.message_type:
+            match source.message_type:
                 case 'vacancy':
                     # Разбиваем сообщение на отдельные вакансии
-                    vacancies = re.split(config.get_vacancy_pattern(), source_message.text)
+                    vacancies = re.split(config.get_vacancy_pattern(), source.text)
                     # Обрабатываем вакансии
                     for vacancy in vacancies:
                         if vacancy.strip('\n'):
@@ -55,22 +61,25 @@ async def main():
                                             vacancy_html = f'Error {response.status}'
                             except aiohttp.ClientError as e:
                                 vacancy_html = f'Error {e}'
-                            # Сохраняем сообщение о вакансии в список
+                            # Дописываем сообщение об ошибке доступа, если IP был заблокирован
                             if re.search(r'Your IP address.*?has been blocked', vacancy_html):
-                                vacancy_html = 'Error 403 Forbidden or 429 Too Many Requests. ' + vacancy_html
-                            detail_messages.append(
-                                VacancyMessage(source_message=source_message, text=vacancy.strip(' \n'),
+                                vacancy_html = f'Error 403 Forbidden or 429 Too Many Requests. {vacancy_html}'
+                            # Сохраняем сообщение о вакансии в список
+                            details.append(
+                                VacancyMessage(source=source, text=vacancy.strip(' \n'),
                                                raw_html=vacancy_html.strip(' \n')))
+                    message_types['vacancy'] += 1
                 case 'statistic':
                     # Создаем сообщение со статистикой
-                    detail_messages.append(StatisticMessage(source_message=source_message))
+                    details.append(StatisticMessage(source=source))
+                    message_types['statistic'] += 1
                 case 'service':
                     # Создаем сервисное сообщение
-                    detail_messages.append(ServiceMessage(source_message=source_message))
+                    details.append(ServiceMessage(source=source))
+                    message_types['service'] += 1
             # Записываем исходное и детальные сообщения в сессию
-            session.add(source_message)
-            for detail_message in detail_messages:
-                session.add(detail_message)
+            session.add(source)
+            session.add_all(details)
             # Сохраняем сообщения в базе данных
             session.commit()
 
@@ -78,6 +87,8 @@ async def main():
 if __name__ == '__main__':
     # Загрузка конфиденциальных параметров Telegram API
     private_settings = load_env('.env')
+    # Инициализация счетчика сообщений
+    message_types = Counter()
     # Создание клиента для работы с Telegram
     client = (TelegramClient(session='.session',  # MemorySession(),
                              api_id=private_settings['APP_API_ID'],
@@ -86,7 +97,13 @@ if __name__ == '__main__':
     with client:
         client.loop.run_until_complete(main())
 
-# TODO: Отчет об обработанных сообщениях
+    export_data_to_excel()
+    print(f'Source:    {message_types.get('source', 0)}')
+    print(f'Vacancy:   {message_types.get('vacancy', 0)}')
+    print(f'Statistic: {message_types.get('statistic', 0)}')
+    print(f'Service:   {message_types.get('service', 0)}')
+    print(f'Unknown:   {message_types.get('unknown', 0)}')
+
+# TODO: Отчет об обработанных сообщениях - проверить подсчет вакансий
 # TODO: Unit тесты
-# TODO: Экспорт всех результатов в Excel
 # TODO: Дописать функцию статуса парсинга вакансий

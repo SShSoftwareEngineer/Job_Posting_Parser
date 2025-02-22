@@ -126,67 +126,119 @@
   "export_to_excel": {
     "source": {
       "sheet_name": "Source",
-      "col_names": {
-        "message_id": "Message ID",
-        "date": "Date, time",
-        "message_type": "Type",
-        "text": "Text"
-      },
-      "sql": "INSERT INTO source (message_id, date, message_type, text) VALUES (?, ?, ?, ?)"
+      "sql": "",
+      "columns": [
+        "source.date",
+        "source.message_id",
+        "source.message_type",
+        "source.text"
+      ],
+      "column_names": [
+        "Date, time",
+        "Message ID",
+        "Type",
+        "Text"
+      ]
     },
     "vacancy": {
       "sheet_name": "Vacancy",
-      "col_names": {
-        "message_id": "Message ID",
-        "date": "Date, time",
-        "text": "Telegram Text",
-        "t_position": "Position",
-        "company": "Company",
-        "location": "Location",
-        "t_experience": "Experience",
-        "min_salary": "Min Salary",
-        "max_salary": "Max Salary",
-        "url": "URL",
-        "subscription": "Subscription",
-        "raw_html": "Raw HTML",
-        "h_position": "Position",
-        "description": "Job Description",
-        "lingvo": "Lingvo",
-        "h_experience": "Experience",
-        "work_type": "Work Type",
-        "candidate_locations": "Candidate Locations",
-        "main_tech": "Main Technology",
-        "tech_stack": "Tech Stack",
-        "domain": "Domain",
-        "company_type": "Company Type",
-        "offices": "Company Offices",
-        "notes": "Notes"
-      },
-      "sql": ""
+      "sql": "",
+      "columns": [
+        "source.date",
+        "vacancy.message_id",
+        "vacancy.text",
+        "vacancy.t_position",
+        "vacancy.company",
+        "vacancy.location",
+        "vacancy.t_experience",
+        "vacancy.min_salary",
+        "vacancy.max_salary",
+        "vacancy.url",
+        "vacancy.subscription",
+        "vacancy.raw_html",
+        "vacancy.h_position",
+        "vacancy.description",
+        "vacancy.lingvo",
+        "vacancy.h_experience",
+        "vacancy.work_type",
+        "vacancy.candidate_locations",
+        "vacancy.main_tech",
+        "vacancy.tech_stack",
+        "vacancy.domain",
+        "vacancy.company_type",
+        "vacancy.offices",
+        "vacancy.notes",
+        "vacancy.temp_count",
+        "vacancy.temp_card"
+      ],
+      "column_names": [
+        "Date, time",
+        "Message ID",
+        "Telegram Text",
+        "Position",
+        "Company",
+        "Location",
+        "Experience",
+        "Min Salary",
+        "Max Salary",
+        "URL",
+        "Subscription",
+        "HTML Text",
+        "Position",
+        "Job Description",
+        "Lingvo",
+        "Experience",
+        "Work Type",
+        "Candidate Locations",
+        "Main Technology",
+        "Tech Stack",
+        "Domain",
+        "Company Type",
+        "Company Offices",
+        "Notes",
+        "temp_count",
+        "temp_card"
+      ]
     },
     "statistic": {
       "sheet_name": "Statistic",
-      "col_names": {
-        "message_id": "Message ID",
-        "date": "Date, time",
-        "vacancies_in_30d": "Vacancies in 30 days",
-        "candidates_online": "Candidates online",
-        "min_salary": "Min Salary",
-        "max_salary": "Max Salary",
-        "responses_to_vacancies": "Responses to vacancies",
-        "vacancies_per_week": "Vacancies per week",
-        "candidates_per_week": "Candidates per week"
-      },
-      "sql": ""
+      "sql": "",
+      "columns": [
+        "source.date",
+        "statistic.message_id",
+        "statistic.vacancies_in_30d",
+        "statistic.candidates_online",
+        "statistic.min_salary",
+        "statistic.max_salary",
+        "statistic.responses_to_vacancies",
+        "statistic.vacancies_per_week",
+        "statistic.candidates_per_week"
+      ],
+      "column_names": [
+        "Date, time",
+        "Message ID",
+        "Vacancies in 30 days",
+        "Candidates online",
+        "Min Salary",
+        "Max Salary",
+        "Responses to vacancies",
+        "Vacancies per week",
+        "Candidates per week"
+      ]
     },
     "service": {
       "sheet_name": "Service",
-      "col_names": {
-        "message_id": "Message ID",
-        "date": "Date, time",
-        "text": "Text"
-      },
-      "sql": "SELECT message_id, date, text FROM target_table"
+      "sql": "",
+      "columns": [
+        "source.date",
+        "service.message_id",
+        "source.text"
+      ],
+      "column_names": [
+        "Date, time",
+        "Message ID",
+        "Text"
+      ]
     }
   },
   "re_patterns": {

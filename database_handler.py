@@ -6,7 +6,7 @@ from config_handler import *
 
 from bs4 import BeautifulSoup
 from sqlalchemy import create_engine, Integer, ForeignKey, Text, String
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, Session
 
 
 # Классы-модели сообщений SQLAlchemy
@@ -16,15 +16,15 @@ class Base(DeclarativeBase):
 
 
 class SourceMessage(Base):
-    __tablename__ = TABLE_NAMES['source_messages']
+    __tablename__ = TABLE_NAMES['source']
     id: Mapped[int] = mapped_column(primary_key=True)
     message_id: Mapped[int] = mapped_column(Integer, unique=True)
     date: Mapped[datetime]
     message_type: Mapped[str] = mapped_column(String, nullable=True)
     text: Mapped[str] = mapped_column(Text, nullable=True)
-    vacancy_message: Mapped["VacancyMessage"] = relationship(back_populates="source_message")
-    statistic_message: Mapped["StatisticMessage"] = relationship(back_populates="source_message")
-    service_message: Mapped["ServiceMessage"] = relationship(back_populates="source_message")
+    vacancy: Mapped["VacancyMessage"] = relationship(back_populates="source")
+    statistic: Mapped["StatisticMessage"] = relationship(back_populates="source")
+    service: Mapped["ServiceMessage"] = relationship(back_populates="source")
 
     def __init__(self, **kw: Any):
         super().__init__(**kw)
@@ -39,10 +39,10 @@ class SourceMessage(Base):
 
 
 class VacancyMessage(Base):
-    __tablename__ = TABLE_NAMES['vacancy_messages']
+    __tablename__ = TABLE_NAMES['vacancy']
     id: Mapped[int] = mapped_column(primary_key=True)
-    message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TABLE_NAMES['source_messages']}.message_id'))
-    source_message: Mapped[SourceMessage] = relationship(back_populates='vacancy_message')
+    message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TABLE_NAMES['source']}.message_id'))
+    source: Mapped[SourceMessage] = relationship(back_populates='vacancy')
     # Параметры вакансии, получаемые из сообщения Telegram
     text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     t_position: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -67,7 +67,7 @@ class VacancyMessage(Base):
     company_type: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     offices: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    parsing_status: Mapped[str]
+    parsing_status: Mapped[str] = mapped_column(String, nullable=True)
 
     temp_count: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     temp_card: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -158,7 +158,7 @@ class VacancyMessage(Base):
                     self.lingvo = additional_info[0]
                     self.h_experience = additional_info[1]
                     if len(additional_info) == 5:
-                        self.note = additional_info[2] if self.note is None else self.note + '\n' + additional_info[2]
+                        self.note = additional_info[2] if self.note is None else f'{self.note}\n{additional_info[2]}'
                     self.work_type = additional_info[-2]
                     matching = re.search(f"(.+)\n({'|'.join(patterns.candidate_locations)})", additional_info[-1])
                     if matching:
@@ -190,7 +190,7 @@ class VacancyMessage(Base):
                             note_str = additional_info[3]
                         else:
                             note_str = additional_info[0]
-                        self.note = note_str if self.note is None else self.note + '\n' + note_str
+                        self.note = note_str if self.note is None else f'{self.note}\n{note_str}'
                     pattern = ''.join([f"(?:{'|'.join(patterns.domain)}) +(?P<domain>.+)\n?",
                                        f"(?P<company_type>.+)?\n?",
                                        f"(?:{'|'.join(patterns.offices)} +(?P<offices>.+))?"])
@@ -202,16 +202,17 @@ class VacancyMessage(Base):
 
                 self.temp_count += '_ ' if len(additional_info) in [2, 3] else f'{len(additional_info)}'
                 self.temp_card += '\n'.join(additional_info)
+        self.raw_html = str(html_to_text(self.raw_html)[0:32767])
 
     def _set_parsing_status(self):
         pass
 
 
 class StatisticMessage(Base):
-    __tablename__ = TABLE_NAMES['statistic_messages']
+    __tablename__ = TABLE_NAMES['statistic']
     id: Mapped[int] = mapped_column(primary_key=True)
-    message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TABLE_NAMES['source_messages']}.message_id'))
-    source_message: Mapped[SourceMessage] = relationship(back_populates='statistic_message')
+    message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TABLE_NAMES['source']}.message_id'))
+    source: Mapped[SourceMessage] = relationship(back_populates='statistic')
     vacancies_in_30d: Mapped[int] = mapped_column(Integer, nullable=True)
     candidates_online: Mapped[int] = mapped_column(Integer, nullable=True)
     min_salary: Mapped[int] = mapped_column(Integer, nullable=True)
@@ -234,13 +235,13 @@ class StatisticMessage(Base):
 
     def _set_numeric_attr(self, field_name: str, patterns: list):
         pattern = f"(?:({'|'.join(patterns)}):? +)({config.re_patterns.numeric})"
-        match = re.search(pattern, self.source_message.text)
+        match = re.search(pattern, self.source.text)
         if match and len(match.groups()) >= 2:
             setattr(self, field_name, str_to_numeric(match.group(2)))
 
     def _set_salary(self, patterns: list):
         pattern = f"(?:({'|'.join(patterns)}):? +){config.re_patterns.salary_range}"
-        match = re.search(pattern, self.source_message.text)
+        match = re.search(pattern, self.source.text)
         if match and len(match.groups()) >= 3:
             self.min_salary = str_to_numeric(match.group(2))
             self.max_salary = str_to_numeric(match.group(3))
@@ -254,25 +255,24 @@ class StatisticMessage(Base):
 
 
 class ServiceMessage(Base):
-    __tablename__ = TABLE_NAMES['service_messages']
+    __tablename__ = TABLE_NAMES['service']
     id: Mapped[int] = mapped_column(primary_key=True)
-    message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TABLE_NAMES['source_messages']}.message_id'))
-    source_message: Mapped[SourceMessage] = relationship(back_populates='service_message')
-
-
-# Создание соединения с базой данных и сессии
-def connect_database():
-    engine = create_engine('sqlite:///vacancies.db')
-    Base.metadata.create_all(engine)
-    result = sessionmaker(bind=engine)
-    return result
+    message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TABLE_NAMES['source']}.message_id'))
+    source: Mapped[SourceMessage] = relationship(back_populates='service')
 
 
 def export_data_to_excel():
-    service_df = pd.read_sql_query(config.export_to_excel['service'].sql, session)
-    service_df.columns = config.export_to_excel['service'].col_names
-    with pd.ExcelWriter('service.xlsx', engine="openpyxl") as writer:
-        service_df.to_excel(writer, sheet_name=config.export_to_excel['service'].sheet_name, index=False, header=True)
+    data_frames = dict()
+    # Импортируем данные из каждой таблицы в соответствующий DataFrame
+    # и устанавливаем имена столбцов для Excel
+    for key in TABLE_NAMES.keys():
+        data_frames[key] = pd.read_sql(config.export_to_excel[key].sql, engine.connect())
+        data_frames[key].columns = config.export_to_excel[key].column_names
+    # Записываем DataFrame(s) в соответствующие листы файла Excel
+    with pd.ExcelWriter('result.xlsx', engine="openpyxl") as writer:
+        for key in TABLE_NAMES.keys():
+            data_frames[key].to_excel(writer, sheet_name=config.export_to_excel[key].sheet_name,
+                                      index=False, header=True, freeze_panes=(1, 1))
 
 
 def str_to_numeric(value: str | None) -> int | float | None:
@@ -309,9 +309,10 @@ def html_to_text(html: str) -> str:
 
 
 # Подключение к базе данных
-session = connect_database()
-
-export_data_to_excel()
+# Создание соединения с базой данных и сессии
+engine = create_engine('sqlite:///vacancies.db')
+session = Session(engine)
+Base.metadata.create_all(engine)
 
 if __name__ == '__main__':
     pass
