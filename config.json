@@ -1,0 +1,205 @@
+{
+  "message_signs": {
+    "source": [],
+    "vacancy": [
+      "Subscription",
+      "__Подписка:__",
+      "Подписка"
+    ],
+    "statistic": [
+      "Статистика на Джині за запитом",
+      "Статистика на Djinni за запитом",
+      "Статистика на Джинне по запросу",
+      "Statistics on Djinni for the query"
+    ],
+    "service": [
+      "Активные подписки",
+      "Active Subscriptions",
+      "Поставил на паузу подписку",
+      "Снял с паузы подписку",
+      "Волшебные слова",
+      "Magic words",
+      "Подписку добавил",
+      "Новая команда у бота",
+      "Новая команда",
+      "Добавить все равно",
+      "__Подсказка__",
+      "/add",
+      "/delete all",
+      "/howmuch",
+      "/help",
+      "/list",
+      "/login",
+      "/pause",
+      "/start",
+      "/subscriptions",
+      "/salaries",
+      "/tips_on",
+      "/unpause"
+    ]
+  },
+  "message_configs": {
+    "source": {},
+    "vacancy": {
+      "text_parsing_signs": {
+        "position_company": " в ",
+        "location_experience": [
+          "год опыта",
+          "года опыта",
+          "лет опыта",
+          "Без опыта",
+          "year of experience",
+          "years of experience",
+          "No experience"
+        ],
+        "subscription": [
+          "Subscription",
+          "__Подписка:__",
+          "Подписка"
+        ],
+        "splitter_pattern": [
+          "Subscription",
+          "__Подписка:__",
+          "Подписка"
+        ]
+      },
+      "html_parsing_signs": {
+        "html_classes": {
+          "description": "mb-4 job-post__description",
+          "job_card": "card card-body",
+          "ul_tags": "list-unstyled"
+        },
+        "candidate_locations": [
+          "Countries where we consider candidates",
+          "Країни, де розглядаємо кандидатів"
+        ],
+        "domain": [
+          "Domain:",
+          "Домен:"
+        ],
+        "offices": [
+          "Office:",
+          "Офіс:",
+          "Офис:"
+        ]
+      },
+      "excel_col_name": {
+        "field": "name"
+      }
+    },
+    "statistic": {
+      "text_parsing_signs": {
+        "vacancies_in_30d": [
+          "Вакансий опубликовано",
+          "Вакансии онлайн",
+          "Вакансій за 30 днів",
+          "Вакансий за 30 дней",
+          "Job ads for 30 days"
+        ],
+        "candidates_online": [
+          "Кандидатов в поиске",
+          "Кандидати онлайн",
+          "Кандидаты онлайн",
+          "Candidates online"
+        ],
+        "salary": [
+          "Вилка по зарплаті",
+          "Вилка по зарплате",
+          "Salary range"
+        ],
+        "responses_to_vacancies": [
+          "Відгуків на одну вакансію",
+          "Откликов на одну вакансию",
+          "Applications per job posting"
+        ],
+        "vacancies_per_week": [
+          "Вакансій",
+          "Вакансий",
+          "Jobs"
+        ],
+        "candidates_per_week": [
+          "Кандидатів",
+          "Кандидатов",
+          "Candidates"
+        ]
+      }
+    },
+    "service": {
+    }
+  },
+  "export_to_excel": {
+    "source": {
+      "sheet_name": "Source",
+      "sql": "",
+      "columns": {
+        "source.date": "Date, time",
+        "source.message_id": "Message ID",
+        "source.message_type": "Type",
+        "source.text": "Text"
+      }
+    },
+    "vacancy": {
+      "sheet_name": "Vacancy",
+      "sql": "",
+      "columns": {
+        "source.date": "Date, time",
+        "vacancy.message_id": "Message ID",
+        "vacancy.text": "Telegram Text",
+        "vacancy.t_position": "Position",
+        "vacancy.company": "Company",
+        "vacancy.location": "Location",
+        "vacancy.t_experience": "Experience",
+        "vacancy.min_salary": "Min Salary",
+        "vacancy.max_salary": "Max Salary",
+        "vacancy.url": "URL",
+        "vacancy.subscription": "Subscription",
+        "vacancy.h_position": "Position",
+        "vacancy.description": "Job Description",
+        "vacancy.lingvo": "Lingvo",
+        "vacancy.h_experience": "Experience",
+        "vacancy.work_type": "Work Type",
+        "vacancy.candidate_locations": "Candidate Locations",
+        "vacancy.main_tech": "Main Technology",
+        "vacancy.tech_stack": "Tech Stack",
+        "vacancy.domain": "Domain",
+        "vacancy.company_type": "Company Type",
+        "vacancy.offices": "Company Offices",
+        "vacancy.notes": "Notes",
+        "vacancy.temp_count": "temp_count",
+        "vacancy.temp_card": "temp_card",
+        "parsing_status": "parsing_status"
+      }
+    },
+    "statistic": {
+      "sheet_name": "Statistic",
+      "sql": "",
+      "columns": {
+        "source.date": "Date, time",
+        "statistic.message_id": "Message ID",
+        "statistic.vacancies_in_30d": "Vacancies in 30 days",
+        "statistic.candidates_online": "Candidates online",
+        "statistic.min_salary": "Min Salary",
+        "statistic.max_salary": "Max Salary",
+        "statistic.responses_to_vacancies": "Responses to vacancies",
+        "statistic.vacancies_per_week": "Vacancies per week",
+        "statistic.candidates_per_week": "Candidates per week",
+        "parsing_status": "parsing_status"
+      }
+    },
+    "service": {
+      "sheet_name": "Service",
+      "sql": "",
+      "columns": {
+        "source.date": "Date, time",
+        "service.message_id": "Message ID",
+        "source.text": "Text"
+      }
+    }
+  },
+  "re_patterns": {
+    "url": "https?:\/\/djinni.co\/.*",
+    "numeric": "([-+]?(?:\\d*[.,]\\d+|\\d+))",
+    "salary": "\\$?{numeric_pattern}",
+    "salary_range": "\\$?{numeric_pattern}-{numeric_pattern}"
+  }
+}

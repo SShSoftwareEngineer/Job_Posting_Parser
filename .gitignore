@@ -168,10 +168,7 @@ Old/
 *.xlsx
 /notes.txt
 /pyvenv.cfg
-/notes.py
-/job_posting_parser_old.py
 /.Database Scheme.vpp.lck
 /Database Scheme.vpp.*
 /.session
-/const.py
-/settings2.json
+/html_processor.py

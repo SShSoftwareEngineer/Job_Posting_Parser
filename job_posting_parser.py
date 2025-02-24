@@ -1,9 +1,7 @@
-from collections import Counter
 import aiohttp
 from telethon import TelegramClient
 from tqdm.asyncio import tqdm
-
-# from telethon.sessions import MemorySession
+from collections import Counter
 
 from database_handler import *
 
@@ -27,13 +25,14 @@ async def main():
     # Получаем новые сообщения из чата
     bot = await client.get_entity(private_settings['BOT_NAME'])
     messages_list = client.iter_messages(bot.id, reverse=True, min_id=last_message_id,
-                                         wait_time=0.1, limit=20)  # , limit=10
-    # Создаем HTTP сессию для работы с HTTP-запросами
-    timeout = aiohttp.ClientTimeout(total=20)  # Устанавливаем тайм-аут запроса
+                                         wait_time=0.1, limit=200)  # , limit=10
+    print(f'   New messages: {messages_list.left}')
+    # Создаем HTTP сессию для работы с HTTP-запросами.
+    # Задаем тайм-аут запроса
+    timeout = aiohttp.ClientTimeout(total=20)
     async with aiohttp.ClientSession(timeout=timeout) as http_session:
         # Обрабатываем полученный список сообщений
-        async for message in tqdm(messages_list):
-            message_types['source'] += 1
+        async for message in tqdm(messages_list, total=messages_list.left, desc='Processing ', ncols=50):
             # Определяем тип исходных сообщений
             source = SourceMessage(message_id=message.id, date=message.date, text=message.text)
             if source.message_type is None:
@@ -98,12 +97,13 @@ if __name__ == '__main__':
         client.loop.run_until_complete(main())
 
     export_data_to_excel()
-    print(f'Source:    {message_types.get('source', 0)}')
+    print('   Report:')
     print(f'Vacancy:   {message_types.get('vacancy', 0)}')
     print(f'Statistic: {message_types.get('statistic', 0)}')
     print(f'Service:   {message_types.get('service', 0)}')
     print(f'Unknown:   {message_types.get('unknown', 0)}')
 
-# TODO: Отчет об обработанных сообщениях - проверить подсчет вакансий
 # TODO: Unit тесты
-# TODO: Дописать функцию статуса парсинга вакансий
+# TODO: Проверить еще качество парсинга HTML
+# TODO: Все откомментировать
+# TODO: Расписать проект в README

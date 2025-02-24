@@ -1,17 +1,21 @@
+import os
 import re
-import pandas as pd
 from datetime import datetime
 from typing import Any
-from config_handler import *
-
+import pandas as pd
 from bs4 import BeautifulSoup
 from sqlalchemy import create_engine, Integer, ForeignKey, Text, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, Session
+from config_handler import *
+
+# Имя файла MS Excel для экспорта базы данных
+_OUTPUT_EXCEL_FILE = 'result.xlsx'
 
 
-# Классы-модели сообщений SQLAlchemy
+
 
 class Base(DeclarativeBase):
+    """ Декларативный класс """
     pass
 
 
@@ -82,6 +86,9 @@ class VacancyMessage(Base):
         self._set_url(config.get_url_pattern())
         self._set_subscription(vacancy_text_signs.subscription)
         self._vacancy_html_parsing(vacancy_html_signs)
+        for key, value in vars(self).items():
+            if value == "":
+                setattr(self, key, None)
         self._set_parsing_status()
 
     def _set_position_company(self, splitter: str):
@@ -202,10 +209,22 @@ class VacancyMessage(Base):
 
                 self.temp_count += '_ ' if len(additional_info) in [2, 3] else f'{len(additional_info)}'
                 self.temp_card += '\n'.join(additional_info)
-        self.raw_html = str(html_to_text(self.raw_html)[0:32767])
 
     def _set_parsing_status(self):
-        pass
+        counted_text_fields = [self.t_position, self.company, self.location, self.t_experience,
+                               self.url, self.subscription]
+        none_count = sum(1 for item in counted_text_fields if item is None)
+        parsing_text_status = 'OK '
+        if none_count:
+            parsing_text_status = f'{len(counted_text_fields) - none_count} / {len(counted_text_fields)}'
+        counted_html_fields = [self.h_position, self.description, self.lingvo, self.h_experience,
+                               self.work_type, self.candidate_locations, self.main_tech, self.tech_stack,
+                               self.domain, self.company_type, self.offices]
+        none_count = sum(1 for item in counted_html_fields if item is None)
+        parsing_html_status = 'OK'
+        if none_count:
+            parsing_html_status = f'{len(counted_html_fields) - none_count} / {len(counted_html_fields)}'
+        self.parsing_status = f'{parsing_text_status} _ {parsing_html_status}'
 
 
 class StatisticMessage(Base):
@@ -220,7 +239,7 @@ class StatisticMessage(Base):
     responses_to_vacancies: Mapped[int] = mapped_column(Integer, nullable=True)
     vacancies_per_week: Mapped[int] = mapped_column(Integer, nullable=True)
     candidates_per_week: Mapped[int] = mapped_column(Integer, nullable=True)
-    parsing_status: Mapped[str]
+    parsing_status: Mapped[str] = mapped_column(Integer, nullable=True)
 
     def __init__(self, **kw: Any):
         super().__init__(**kw)
@@ -231,6 +250,9 @@ class StatisticMessage(Base):
         self._set_numeric_attr('vacancies_per_week', statistic_signs.vacancies_per_week)
         self._set_numeric_attr('candidates_per_week', statistic_signs.candidates_per_week)
         self._set_salary(statistic_signs.salary)
+        for key, value in vars(self).items():
+            if value == "":
+                setattr(self, key, None)
         self._set_parsing_status()
 
     def _set_numeric_attr(self, field_name: str, patterns: list):
@@ -247,11 +269,13 @@ class StatisticMessage(Base):
             self.max_salary = str_to_numeric(match.group(3))
 
     def _set_parsing_status(self):
-        number_of_fields = 7
-        success_count = sum(1 for x in (self.vacancies_in_30d, self.candidates_online, self.min_salary,
-                                        self.max_salary, self.responses_to_vacancies, self.vacancies_per_week,
-                                        self.candidates_per_week) if x is not None)
-        self.parsing_status = 'OK' if success_count == number_of_fields else f'{success_count} / {number_of_fields}'
+        counted_fields = [self.vacancies_in_30d, self.candidates_online, self.min_salary, self.max_salary,
+                          self.responses_to_vacancies, self.vacancies_per_week, self.candidates_per_week]
+        none_count = sum(1 for item in counted_fields if item is None)
+        if none_count:
+            self.parsing_status = f'{len(counted_fields) - none_count} / {len(counted_fields)}'
+        else:
+            self.parsing_status = 'OK'
 
 
 class ServiceMessage(Base):
@@ -262,15 +286,21 @@ class ServiceMessage(Base):
 
 
 def export_data_to_excel():
-    data_frames = dict()
+    data_frames = {}
     # Импортируем данные из каждой таблицы в соответствующий DataFrame
     # и устанавливаем имена столбцов для Excel
-    for key in TABLE_NAMES.keys():
+    for key in TABLE_NAMES:
         data_frames[key] = pd.read_sql(config.export_to_excel[key].sql, engine.connect())
-        data_frames[key].columns = config.export_to_excel[key].column_names
+        data_frames[key].columns = config.export_to_excel[key].columns.values()
+    # Определяем имя Excel файла
+    excel_file_suffix = 1
+    excel_file_name = _OUTPUT_EXCEL_FILE
+    while os.path.exists(excel_file_name):
+        excel_file_name = _OUTPUT_EXCEL_FILE.replace('.xlsx', f'({excel_file_suffix}).xlsx')
+        excel_file_suffix += 1
     # Записываем DataFrame(s) в соответствующие листы файла Excel
-    with pd.ExcelWriter('result.xlsx', engine="openpyxl") as writer:
-        for key in TABLE_NAMES.keys():
+    with pd.ExcelWriter(excel_file_name, engine="openpyxl") as writer:
+        for key in TABLE_NAMES:
             data_frames[key].to_excel(writer, sheet_name=config.export_to_excel[key].sheet_name,
                                       index=False, header=True, freeze_panes=(1, 1))
 
