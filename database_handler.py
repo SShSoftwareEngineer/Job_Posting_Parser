@@ -11,7 +11,12 @@ from config_handler import *
 # Имя файла MS Excel для экспорта базы данных
 _OUTPUT_EXCEL_FILE = 'result.xlsx'
 
-
+HTTP_ERRORS = {
+    403: 'Error 403 Forbidden',
+    404: 'Error 404 Not Found',
+    429: 'Error 429 Too Many Requests',
+    "IP blocked": "Error 403 Forbidden or 429 Too Many Requests"
+}
 
 
 class Base(DeclarativeBase):
@@ -36,10 +41,10 @@ class SourceMessage(Base):
 
     def _set_message_type(self, message_signs: dict):
         for message_type, patterns in message_signs.items():
-            for pattern in patterns:
-                if pattern in self.text:
-                    self.message_type = message_type
-                    return None
+            matching = re.search(f"{'|'.join(patterns)}", self.text)
+            if matching:
+                self.message_type = message_type
+                return None
 
 
 class VacancyMessage(Base):
@@ -92,26 +97,24 @@ class VacancyMessage(Base):
         self._set_parsing_status()
 
     def _set_position_company(self, splitter: str):
-        parsing_str = self.text.split('\n')[0].strip(' *_')
+        parsing_str = re.sub(r'[*_`]+', '', self.text.split('\n')[0]).replace('  ', ' ')
         if splitter in parsing_str:
-            self.t_position = parsing_str.split(splitter)[0].strip(' *_')
-            self.company = parsing_str.split(splitter)[1].strip(' *_')
+            self.t_position = parsing_str.split(splitter)[0]
+            self.company = parsing_str.split(splitter)[1]
         else:
             self.t_position = parsing_str
 
     def _set_location_experience(self, pattern: list[str]):
-        parsing_str = self.text.split('\n')[1].strip(' *_')
+        parsing_str = re.sub(r'[*_`]+', '', self.text.split('\n')[1]).replace('  ', ' ')
         matching = re.search(f'(.+), {config.re_patterns.numeric}? ?({"|".join(pattern)})', parsing_str)
         if matching:
-            if len(matching.groups()) in [2, 3]:
-                self.location = matching.group(1)
-            if len(matching.groups()) == 2 and matching.group(3)[0:1].isupper():
+            self.location = matching.group(1)
+            self.t_experience = str_to_numeric(matching.group(2))
+            if matching.group(2) is None and matching.group(3) is not None:
                 self.t_experience = 0
-            if len(matching.groups()) == 3:
-                self.t_experience = str_to_numeric(matching.group(2))
 
     def _set_salary(self, range_pattern: str, salary_pattern: str):
-        parsing_str = self.text.split('\n')[1].strip(' *_')
+        parsing_str = re.sub(r'[*_`]+', '', self.text.split('\n')[1]).replace('  ', ' ')
         matching = re.search(fr'{range_pattern}\Z', parsing_str)
         if matching:
             if len(matching.groups()) == 2:
@@ -129,14 +132,27 @@ class VacancyMessage(Base):
             self.url = matching.group(0)
 
     def _set_subscription(self, pattern: list[str]):
-        parsing_str = self.text.split('\n')[-1]
+        parsing_str = re.sub(r'[*_`]+', '', self.text.split('\n')[-1]).replace('  ', ' ')
         matching = re.sub(f'{"|".join(pattern)}', '', parsing_str)
         if matching:
             self.subscription = matching.strip('\"\' *_`')
 
+    def _is_vacancy_html_error(self) -> bool:
+        matching = re.search(r'Error \d{3}', self.raw_html)
+        if matching and matching.start(0) < 500:
+            return True
+        return False
+
+    def _safety_add_string(self, field: str, adding_string: str):
+        if getattr(self, field) is None:
+            setattr(self, field, adding_string)
+        else:
+            if adding_string not in getattr(self, field):
+                setattr(self, field, f'{getattr(self, field)}\n{adding_string}')
+
     def _vacancy_html_parsing(self, patterns):
         # Проверяем, не вернул ли сервер HTML-страницу с ошибкой
-        if re.search(r'Error \d{3}', self.raw_html) and len(self.raw_html) < 500:
+        if self._is_vacancy_html_error():
             return None
         # Создаем объект BeautifulSoup для парсинга HTML-страницы с текстом вакансии
         soup = BeautifulSoup(self.raw_html, 'lxml')
@@ -156,74 +172,91 @@ class VacancyMessage(Base):
 
             self.note = None
             if ul_tags and len(ul_tags) == 3:
-                # Обрабатываем первый блок: требования к английскому, опыт, тип работы, локации кандидатов
                 additional_info = []
+
+                # Обрабатываем первый блок: требования к английскому, опыт, тип работы, локации кандидатов
                 li_tags = ul_tags[0].find_all('li')
                 for li_tag in li_tags:
                     additional_info.append(html_to_text(str(li_tag)))
-                if len(additional_info) in [4, 5]:
-                    self.lingvo = additional_info[0]
-                    self.h_experience = additional_info[1]
-                    if len(additional_info) == 5:
-                        self.note = additional_info[2] if self.note is None else f'{self.note}\n{additional_info[2]}'
-                    self.work_type = additional_info[-2]
-                    matching = re.search(f"(.+)\n({'|'.join(patterns.candidate_locations)})", additional_info[-1])
-                    if matching:
-                        self.candidate_locations = matching.group(1).strip()
 
                 self.temp_count += '_ ' if len(additional_info) == 4 else f'{len(additional_info)} '
-                self.temp_card += '\n'.join(additional_info) + '\n'
+                self._safety_add_string('temp_card', '\n'.join([x for x in additional_info if x]))
+
+                for i, add_info in enumerate(additional_info):
+                    if re.search(f"{'|'.join(patterns.lingvo)}", add_info):
+                        self._safety_add_string('lingvo', add_info)
+                        additional_info[i] = ''
+                    if re.search(f"{'|'.join(patterns.experience)}", add_info):
+                        self.h_experience = add_info
+                        additional_info[i] = ''
+                    if re.search(f"{'|'.join(patterns.work_type)}", add_info):
+                        self.work_type = add_info
+                        additional_info[i] = ''
+                    if re.search(f"{'|'.join(patterns.candidate_locations)}", add_info):
+                        self.candidate_locations = add_info.split('\n')[0]
+                        additional_info[i] = ''
+                self._safety_add_string('note', '\n'.join([x for x in additional_info if x]))
+
+
 
                 # Обрабатываем второй блок: основная технология, технический стек
                 additional_info.clear()
                 li_tags = ul_tags[1].find_all('li')
                 for li_tag in li_tags:
                     additional_info.append(html_to_text(str(li_tag)))
+
+                self.temp_count += '_ ' if len(additional_info) in [1, 2] else f'{len(additional_info)} '
+                self._safety_add_string('temp_card', '\n'.join([x for x in additional_info if x]))
+
                 self.main_tech = additional_info[0]
                 if len(additional_info) == 2:
                     self.tech_stack = additional_info[1]
 
-                self.temp_count += '_ ' if len(additional_info) in [1, 2] else f'{len(additional_info)} '
-                self.temp_card += '\n'.join(additional_info) + '\n'
+
 
                 # Обрабатываем третий блок: домен и тип компании, локация офисов
                 additional_info.clear()
                 li_tags = ul_tags[2].find_all('li')
                 for li_tag in li_tags:
                     additional_info.append(html_to_text(str(li_tag)))
-                if len(additional_info) in [2, 3, 4]:
-                    if len(additional_info) == 4:
-                        if re.search(f"{'|'.join(patterns.domain)}", additional_info[0]):
-                            note_str = additional_info[3]
-                        else:
-                            note_str = additional_info[0]
-                        self.note = note_str if self.note is None else f'{self.note}\n{note_str}'
-                    pattern = ''.join([f"(?:{'|'.join(patterns.domain)}) +(?P<domain>.+)\n?",
-                                       f"(?P<company_type>.+)?\n?",
-                                       f"(?:{'|'.join(patterns.offices)} +(?P<offices>.+))?"])
-                    matching = re.search(pattern, '\n'.join(additional_info))
-                    if matching:
-                        self.domain = matching.groupdict().get('domain')
-                        self.company_type = matching.groupdict().get('company_type')
-                        self.offices = matching.groupdict().get('offices')
+                # if len(additional_info) == 4:
+                #     if re.search(f"{'|'.join(patterns.domain)}", additional_info[0]):
+                #         self._safety_add_string('note', additional_info[3])
+                #     else:
+                #         self._safety_add_string('note', additional_info[0])
 
                 self.temp_count += '_ ' if len(additional_info) in [2, 3] else f'{len(additional_info)}'
-                self.temp_card += '\n'.join(additional_info)
+                self._safety_add_string('temp_card', '\n'.join([x for x in additional_info if x]))
+
+                for i, add_info in enumerate(additional_info):
+                    if re.search(f"{'|'.join(patterns.domain)}", add_info):
+                        self.domain = re.sub(f"{'|'.join(patterns.domain)}", '', add_info).strip()
+                        additional_info[i] = ''
+                    if re.search(f"{'|'.join(patterns.offices)}", add_info):
+                        self.offices = re.sub(f"{'|'.join(patterns.offices)}", '', add_info).strip()
+                        additional_info[i] = ''
+                    if not re.search(f"{'|'.join(patterns.domain + patterns.offices)}", add_info):
+                        self.company_type = add_info
+                        additional_info[i] = ''
+                self._safety_add_string('note', '\n'.join([x for x in additional_info if x]))
+
+
 
     def _set_parsing_status(self):
         counted_text_fields = [self.t_position, self.company, self.location, self.t_experience,
                                self.url, self.subscription]
-        none_count = sum(1 for item in counted_text_fields if item is None)
         parsing_text_status = 'OK '
+        none_count = sum(1 for item in counted_text_fields if item is None)
         if none_count:
             parsing_text_status = f'{len(counted_text_fields) - none_count} / {len(counted_text_fields)}'
         counted_html_fields = [self.h_position, self.description, self.lingvo, self.h_experience,
                                self.work_type, self.candidate_locations, self.main_tech, self.tech_stack,
                                self.domain, self.company_type, self.offices]
-        none_count = sum(1 for item in counted_html_fields if item is None)
         parsing_html_status = 'OK'
-        if none_count:
-            parsing_html_status = f'{len(counted_html_fields) - none_count} / {len(counted_html_fields)}'
+        if not self._is_vacancy_html_error():
+            none_count = sum(1 for item in counted_html_fields if item is None)
+            if none_count:
+                parsing_html_status = f'{len(counted_html_fields) - none_count} / {len(counted_html_fields)}'
         self.parsing_status = f'{parsing_text_status} _ {parsing_html_status}'
 
 

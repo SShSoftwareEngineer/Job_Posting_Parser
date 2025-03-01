@@ -99,8 +99,12 @@ class HtmlParsingSigns(BaseModel):
         offices (List[str]):  сигнатуры для определения местоположения офисов компании
     """
     html_classes: Optional[HtmlClasses]
+    lingvo: List[str]
+    experience: List[str]
     candidate_locations: List[str]
+    work_type: List[str]
     domain: List[str]
+    company_type: List[str]
     offices: List[str]
 
 

@@ -1,8 +1,8 @@
 {
   "message_signs": {
-    "source": [],
     "vacancy": [
-      "Subscription",
+      "__Subscription:__",
+      "[^ ]Subscription",
       "__Подписка:__",
       "Подписка"
     ],
@@ -48,14 +48,16 @@
           "года опыта",
           "лет опыта",
           "Без опыта",
+          "без опыта",
           "year of experience",
           "years of experience",
           "No experience"
         ],
         "subscription": [
-          "Subscription",
+          "__Subscription:__",
+          "Subscription:",
           "__Подписка:__",
-          "Подписка"
+          "Подписка:"
         ],
         "splitter_pattern": [
           "Subscription",
@@ -69,6 +71,28 @@
           "job_card": "card card-body",
           "ul_tags": "list-unstyled"
         },
+        "lingvo": [
+          "No English",
+          "Elementary",
+          "Beginner",
+          "Intermediate",
+          "Advanced",
+          "Fluent",
+          "Ukrainian"
+        ],
+        "experience": [
+          "досвіду",
+          "year of experience",
+          "years of experience",
+          "No experience"
+        ],
+        "work_type": [
+          "Офіс",
+          "офіс",
+          "віддалено",
+          "Remote",
+          "Office"
+        ],
         "candidate_locations": [
           "Countries where we consider candidates",
           "Країни, де розглядаємо кандидатів"
@@ -76,6 +100,15 @@
         "domain": [
           "Domain:",
           "Домен:"
+        ],
+        "company_type": [
+          "Agency",
+          "Outsource",
+          "Outstaff",
+          "Product",
+          "Аутсорс",
+          "Аутстаф",
+          "Продукт"
         ],
         "offices": [
           "Office:",

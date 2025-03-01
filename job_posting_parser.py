@@ -1,8 +1,10 @@
+import asyncio
+from time import sleep
+
 import aiohttp
 from telethon import TelegramClient
 from tqdm.asyncio import tqdm
 from collections import Counter
-
 from database_handler import *
 
 
@@ -24,15 +26,14 @@ async def main():
         last_message_id = max(map(lambda x: x[0], (session.query(SourceMessage.message_id))))
     # Получаем новые сообщения из чата
     bot = await client.get_entity(private_settings['BOT_NAME'])
-    messages_list = client.iter_messages(bot.id, reverse=True, min_id=last_message_id,
-                                         wait_time=0.1, limit=200)  # , limit=10
+    messages_list = client.iter_messages(bot.id, reverse=True, min_id=last_message_id, wait_time=0.1)
     print(f'   New messages: {messages_list.left}')
     # Создаем HTTP сессию для работы с HTTP-запросами.
     # Задаем тайм-аут запроса
     timeout = aiohttp.ClientTimeout(total=20)
     async with aiohttp.ClientSession(timeout=timeout) as http_session:
         # Обрабатываем полученный список сообщений
-        async for message in tqdm(messages_list, total=messages_list.left, desc='Processing ', ncols=50):
+        async for message in tqdm(messages_list, total=messages_list.left, desc='Processing ', ncols=100):
             # Определяем тип исходных сообщений
             source = SourceMessage(message_id=message.id, date=message.date, text=message.text)
             if source.message_type is None:
@@ -45,7 +46,7 @@ async def main():
                     vacancies = re.split(config.get_vacancy_pattern(), source.text)
                     # Обрабатываем вакансии
                     for vacancy in vacancies:
-                        if vacancy.strip('\n'):
+                        if vacancy.strip(' *_\n'):
                             # Извлекаем URL вакансии
                             vacancy_url = re.search(config.get_url_pattern(), vacancy)[0]
                             # Получаем HTML-код страницы вакансии
@@ -54,15 +55,15 @@ async def main():
                                     match response.status:
                                         case 200:
                                             vacancy_html = await response.text()
-                                        case 404:
-                                            vacancy_html = 'Error 404 Not Found'
+                                        case 403 | 404 | 429:
+                                            vacancy_html = HTTP_ERRORS.get(response.status)
                                         case _:
                                             vacancy_html = f'Error {response.status}'
                             except aiohttp.ClientError as e:
                                 vacancy_html = f'Error {e}'
                             # Дописываем сообщение об ошибке доступа, если IP был заблокирован
                             if re.search(r'Your IP address.*?has been blocked', vacancy_html):
-                                vacancy_html = f'Error 403 Forbidden or 429 Too Many Requests. {vacancy_html}'
+                                vacancy_html = f'{HTTP_ERRORS.get("IP blocked")}. {vacancy_html}'
                             # Сохраняем сообщение о вакансии в список
                             details.append(
                                 VacancyMessage(source=source, text=vacancy.strip(' \n'),
