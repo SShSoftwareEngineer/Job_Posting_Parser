@@ -39,10 +39,11 @@
     ]
   },
   "message_configs": {
-    "source": {},
     "vacancy": {
       "text_parsing_signs": {
-        "position_company": " в ",
+        "position_company": [
+          " в "
+        ],
         "location_experience": [
           "год опыта",
           "года опыта",
@@ -115,9 +116,6 @@
           "Офіс:",
           "Офис:"
         ]
-      },
-      "excel_col_name": {
-        "field": "name"
       }
     },
     "statistic": {
@@ -156,8 +154,6 @@
           "Candidates"
         ]
       }
-    },
-    "service": {
     }
   },
   "export_to_excel": {
@@ -198,7 +194,6 @@
         "vacancy.company_type": "Company Type",
         "vacancy.offices": "Company Offices",
         "vacancy.notes": "Notes",
-        "vacancy.temp_count": "temp_count",
         "vacancy.temp_card": "temp_card",
         "parsing_status": "parsing_status"
       }

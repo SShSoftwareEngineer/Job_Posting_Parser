@@ -170,5 +170,6 @@ Old/
 /pyvenv.cfg
 /.Database Scheme.vpp.lck
 /Database Scheme.vpp.*
+/Config Scheme.vpp.*
 /.session
 /html_processor.py
