@@ -10,10 +10,10 @@ async def main(client_telegram, priv_settings, message_types) - асинхрон
 обработки сообщений из чата Telegram
 """
 
-from collections import Counter
+from collections import Counter, namedtuple
 import re
 import aiohttp
-from telethon import TelegramClient
+from telethon import TelegramClient # type: ignore
 from tqdm.asyncio import tqdm
 from database_handler import SourceMessage, VacancyMessage, StatisticMessage, ServiceMessage, \
     HTTP_ERRORS, session, config, export_data_to_excel
@@ -34,6 +34,10 @@ def load_env(file_path: str) -> dict:
                 key, value = line.strip().split('=')
                 env_vars[key] = value
     return env_vars
+
+
+# Кортеж, соответствующий структуре данных вакансии
+Vacancy = namedtuple('Vacancy', ['text', 'url', 'html'])
 
 
 async def main(client_telegram, priv_settings, message_types):
@@ -69,29 +73,30 @@ async def main(client_telegram, priv_settings, message_types):
                     # Разбиваем сообщение на отдельные вакансии
                     vacancies = re.split(config.get_vacancy_pattern(), source.text)
                     # Обрабатываем вакансии
-                    for vacancy in vacancies:
-                        if vacancy.strip(' *_\n'):
+                    for _ in vacancies:
+                        vacancy = Vacancy(text=_, url='', html='')
+                        if vacancy.text.strip(' *_\n'):
                             # Извлекаем URL вакансии
-                            vacancy_url = re.search(config.get_url_pattern(), vacancy)[0]
+                            vacancy.url = re.search(config.get_url_pattern(), vacancy.text)[0]
                             # Получаем HTML-код страницы вакансии
                             try:
-                                async with http_session.get(vacancy_url) as response:
+                                async with http_session.get(str(vacancy.url)) as response:
                                     match response.status:
                                         case 200:
-                                            vacancy_html = await response.text()
+                                            vacancy.html = await response.text()
                                         case 403 | 404 | 429:
-                                            vacancy_html = HTTP_ERRORS.get(response.status)
+                                            vacancy.html = HTTP_ERRORS.get(response.status)
                                         case _:
-                                            vacancy_html = f'Error {response.status}'
+                                            vacancy.html = f'Error {response.status}'
                             except aiohttp.ClientError as e:
-                                vacancy_html = f'Error {e}'
+                                vacancy.html = f'Error {e}'
                             # Дописываем сообщение об ошибке доступа, если IP был заблокирован
-                            if re.search(r'Your IP address.*?has been blocked', vacancy_html):
-                                vacancy_html = f'{HTTP_ERRORS.get("IP blocked")}. {vacancy_html}'
+                            if re.search(r'Your IP address.*?has been blocked', vacancy.html):
+                                vacancy.html = f'{HTTP_ERRORS.get("IP blocked")}. {vacancy.html}'
                             # Сохраняем сообщение о вакансии в список
                             details.append(
-                                VacancyMessage(source=source, text=vacancy.strip(' \n'),
-                                               raw_html=vacancy_html.strip(' \n')))
+                                VacancyMessage(source=source, text=vacancy.text.strip(' \n'),
+                                               raw_html=vacancy.html.strip(' \n')))
                     message_types['vacancy'] += 1
                 case 'statistic':
                     # Создаем сообщение со статистикой
@@ -130,3 +135,4 @@ if __name__ == '__main__':
 
 # TODO: Unit тесты
 # TODO: Расписать проект в README
+# TODO: продумать, как сделать с двуязычными комментариями и readme.md
