@@ -1,15 +1,15 @@
-""" Модуль предназначен для работы с файлом конфигурации и содержит константы и классы для работы с ним
+""" The module is designed to work with a configuration file and contains constants and classes for working with it.
 
-TABLE_NAMES - словарь с именами таблиц БД для разных типов сообщений
-HtmlClasses - содержит названия классов HTML-тегов, которые соответствуют требуемым блокам HTML файла сообщения с сайта
-HtmlParsingSigns - содержит сигнатуры классов для парсинга HTML файла сообщения с сайта
-VacancyMessageConfig - содержит сигнатуры для парсинга сообщений Telegram с вакансией и HTML файла сообщения с сайта
-StatisticMessageConfig - содержит сигнатуры для парсинга сообщений Telegram со статистикой
-MessageConfig - содержит сигнатуры для парсинга сообщений
-ExportToExcelConfig - содержит конфигурации для экспорта результатов в формат MS Excel
-RePatternsConfig - содержит шаблоны модуля RE для извлечения текстовой информации
-Config - корневой класс конфигурации
-config - объект Config, содержащий конфигурацию, считываемую из файла JSON
+TABLE_NAMES - dictionary with database table names for different message types
+HtmlClasses - names of HTML tag classes that correspond to required blocks in the HTML message file from the website
+HtmlParsingSigns - class signatures for parsing HTML message files from the website
+VacancyMessageConfig - signatures for parsing Telegram vacancy messages and HTML message files from the website
+StatisticMessageConfig - signatures for parsing Telegram statistics messages
+MessageConfig - signatures for parsing messages
+ExportToExcelConfig - configurations for exporting results to MS Excel format
+RePatternsConfig - regular expressions (patterns) for extracting text information
+Config - the root configuration class
+config - an object of the Config class containing the configuration read from a JSON file
 """
 
 import json
@@ -27,7 +27,7 @@ TABLE_NAMES = {'vacancy': 'vacancy_msgs',
 
 
 class HtmlClasses(BaseModel):
-    """ Содержит названия классов HTML-тегов, которые соответствуют требуемым блокам HTML файла сообщения с сайта
+    """ Класс содержит названия классов HTML-тегов, которые соответствуют требуемым блокам HTML файла сообщения с сайта
 
     Attributes:
     description (str): HTML-класс описания вакансии
@@ -44,7 +44,7 @@ class HtmlParsingSigns(BaseModel):
 
     Attributes:
     html_classes (HtmlClasses): названия классов HTML-тегов,
-        которые соответствуют нужным блокам HTML файла сообщения с сайта
+        которые соответствуют требуемым блокам HTML файла сообщения с сайта
     candidate_locations (List[str]): сигнатуры для определения локаций кандидатов
     domain (List[str]):  сигнатуры для определения домена компании
     offices (List[str]):  сигнатуры для определения местоположения офисов компании
@@ -83,7 +83,7 @@ class MessageConfigs(BaseModel):
     """ Класс содержит сигнатуры для парсинга сообщений
 
     Attributes:
-    vacancy (VacancyMessageConfig) - сигнатуры для парсинга сообщений с вакансией
+    vacancy (VacancyMessageConfig) - сигнатуры для парсинга сообщений с вакансиями
     statistic (StatisticMessageConfig) - сигнатуры для парсинга сообщений со статистикой
     """
     vacancy: VacancyMessageConfig
@@ -91,10 +91,10 @@ class MessageConfigs(BaseModel):
 
 
 class ExportToExcelConfig(BaseModel):
-    """ Класс конфигурации для экспорта результатов в формат MS Excel
+    """ Класс конфигурации для экспорта результатов в формат Microsoft Excel
 
     Attributes:
-    sheet_name (str): имя листа файла MS Excel
+    sheet_name (str): имя листа в файле Microsoft Excel
     sql (str): SQL запрос
     columns (Dict[str, str]): названия колонок, которые включаются в SQL запрос и их отображаемые имена
     """
@@ -104,13 +104,13 @@ class ExportToExcelConfig(BaseModel):
 
 
 class RePatternsConfig(BaseModel):
-    """ Класс содержит шаблоны модуля RE для извлечения текстовой информации
+    """ Класс содержит регулярные выражения (шаблоны) для извлечения текстовой информации
 
     Attributes:
-    url (str): шаблон RE URL полного текста вакансии на сайте
-    numeric (str): шаблон RE для чисел (+, -, int, float)
-    salary (str): шаблон RE для заработной платы
-    salary_range (str): шаблон RE для диапазона заработной платы
+    url (str): шаблон URL полного текста вакансии на сайте
+    numeric (str): шаблон для чисел (+, -, int, float)
+    salary (str): шаблон для заработной платы
+    salary_range (str): шаблон для диапазона заработной платы
     """
     url: str
     numeric: str
@@ -125,11 +125,11 @@ class Config(BaseModel):
     message_signs (Dict[str, List[str]]): сигнатуры для распознавания типа сообщения
     message_configs (Dict[str, MessageConfig]): сигнатуры для парсинга
     export_to_excel (Dict[str, ExportToExcelConfig]): конфигурации экспорта результатов в формат MS Excel
-    re_patterns (RePatternsConfig): шаблоны модуля RE для извлечения текстовой информации
+    re_patterns (RePatternsConfig): регулярные выражения (шаблоны) для извлечения текстовой информации
     Methods:
     resolve_patterns(self): Заменяет placeholders в конфигурации, подставляя реальные значения
-    get_url_pattern(self) -> str: Возвращает шаблон модуля RE для URL полного сообщения о вакансии на сайте
-    get_vacancy_pattern(self) -> str: Возвращает шаблон RE из разделителей для сообщений с несколькими вакансиями
+    get_url_pattern(self) -> str: Возвращает шаблон для URL полного сообщения о вакансии на сайте
+    get_vacancy_pattern(self) -> str: Возвращает шаблон из разделителей для сообщений с несколькими вакансиями
     get_export_to_excel_sql(self, table_name: str) -> str: Возвращает SQL запрос для экспорта
         информации в файл формата MS Excel
     """
@@ -140,7 +140,7 @@ class Config(BaseModel):
 
     def resolve_patterns(self):
         """ Заменяет placeholders в конфигурации, подставляя реальные значения """
-        # Заменяет placeholders в шаблонах модуля RE
+        # Заменяет placeholders в регулярных выражениях (шаблонах)
         self.re_patterns.salary = self.re_patterns.salary.replace('{numeric_pattern}',
                                                                   self.re_patterns.numeric)
         self.re_patterns.salary_range = self.re_patterns.salary_range.replace('{numeric_pattern}',
@@ -150,7 +150,7 @@ class Config(BaseModel):
             self.export_to_excel[key].sql = self.get_export_to_excel_sql(key)
 
     def get_url_pattern(self) -> str:
-        """ Возвращает шаблон модуля RE для URL полного сообщения о вакансии на сайте """
+        """ Возвращает регулярное выражение (шаблон) для URL полного сообщения о вакансии на сайте """
         return self.re_patterns.url
 
     def get_vacancy_pattern(self) -> str:

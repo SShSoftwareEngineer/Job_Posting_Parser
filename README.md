@@ -39,15 +39,15 @@ OpenPyXL - Excel file manipulation.
 
 ### Installation
 
-1. Clone the repository:
-   git clone https://github.com/yourusername/job-posting-parser.git
+1. Clone the repository:  
+   git clone https://github.com/yourusername/job-posting-parser.git  
    cd job-posting-parser
-2. Install the dependencies:
-   pip install -r requirements.txt
-3. Set up your Telegram API credentials in a .env file:
-   Create a new application on my.telegram.org.
+2. Install the dependencies:  
+   pip install -r requirements.txt  
+3. Set up your Telegram API credentials in a .env file:    
+   Create a new application on my.telegram.org.  
    Add your API_ID, API_HASH and params to the .env file.
-4. Run the script:
+4. Run the script:  
    python job_posting_parser.py
 
 ### Usage
@@ -109,15 +109,15 @@ OpenPyXL - Работа с файлами Excel.
 
 ### Установка
 
-1. Клонируйте репозиторий:
-   git clone https://github.com/yourusername/job-posting-parser.git
+1. Клонируйте репозиторий:  
+   git clone https://github.com/yourusername/job-posting-parser.git  
    cd job-posting-parser
-2. Настройте учетные данные API Telegram:
+2. Настройте учетные данные API Telegram:  
    pip install -r requirements.txt
-3. Настройте API Telegram в файле .env:
-   Создайте новое приложение на my.telegram.org.
+3. Настройте API Telegram в файле .env:  
+   Создайте новое приложение на my.telegram.org.  
    Добавьте ваш API_ID, API_HASH и другие параметры в файл .env.
-4. Запустите скрипт:
+4. Запустите скрипт:  
    python job_posting_parser.py
 
 ### Использование

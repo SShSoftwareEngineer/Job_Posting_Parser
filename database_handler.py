@@ -1,13 +1,13 @@
-""" Модуль содержит классы-модели, функции и константы для работы с базой данных SQLite с использованием SQLAlchemy
+""" The module contains model classes, functions, and constants for working with an SQLite database using SQLAlchemy.
 
-HTTP_ERRORS - словарь с описанием ошибок HTTP-запросов
-class Base(DeclarativeBase) - декларативный класс для создания таблиц в базе данных
-class SourceMessage(Base) - класс-модель для исходных сообщений Telegram
-class VacancyMessage(Base) - класс-модель для сообщений с вакансиями
-class StatisticMessage(Base) - класс-модель для сообщений со статистикой
-class ServiceMessage(Base) - класс-модель для служебных сообщений
-def export_data_to_excel() - функция для экспорта данных из базы данных в файл MS Excel
-session - объект сессии для работы с базой данных
+HTTP_ERRORS - a dictionary containing descriptions of HTTP request errors
+class Base(DeclarativeBase) - a declarative class for creating tables in the database
+class SourceMessage(Base) - a model class for original Telegram messages
+class VacancyMessage(Base) - a model class for vacancy messages
+class StatisticMessage(Base) - a model class for statistics messages
+class ServiceMessage(Base) - a model class for service messages
+def export_data_to_excel() - a function for exporting data from the database to MS Excel file
+session - a session object for working with the database
 """
 
 import os

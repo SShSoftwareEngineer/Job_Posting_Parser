@@ -1,19 +1,19 @@
-""" Скрипт реализует основную логику проекта
+""" The script implements the core logic of the project.
 
-Инициализируются переменные:
-private_settings - словарь с конфиденциальными данными для работы с Telegram API
-message_types_counter - счетчик сообщений всех типов
-client - объект клиента Telegram
-Функции:
-load_env(file_path) - функция для чтения конфиденциальных данных из файла .env для работы с Telegram API
-async def main(client_telegram, priv_settings, message_types) - асинхронная функция для получения и
-обработки сообщений из чата Telegram
+Variables are initialized:
+private_settings - a dictionary containing confidential data for working with the Telegram API
+message_types_counter - a counter for messages of all types
+client - a Telegram client object
+Functions:
+load_env(file_path) - a function for reading confidential data from a .env file for working with the Telegram API
+async def main(client_telegram, priv_settings, message_types) - an asynchronous function for retrieving and
+processing messages from the Telegram chat
 """
 
 from collections import Counter, namedtuple
 import re
 import aiohttp
-from telethon import TelegramClient # type: ignore
+from telethon import TelegramClient  # type: ignore
 from tqdm.asyncio import tqdm
 from database_handler import SourceMessage, VacancyMessage, StatisticMessage, ServiceMessage, \
     HTTP_ERRORS, session, config, export_data_to_excel
@@ -134,5 +134,6 @@ if __name__ == '__main__':
     print(f'Unknown:   {message_types_counter.get('unknown', 0)}')
 
 # TODO: Unit тесты
-# TODO: Расписать проект в README
-# TODO: продумать, как сделать с двуязычными комментариями и readme.md
+# TODO: продумать, как сделать с двуязычными комментариями
+# TODO: продумать, как сделать демоверсию базы и экселя и как хранить настоящую, может переименовывать, а обрезать в сервисе по дате - какой-то срок
+# оставить на русском заголовки классов и модулей, а внутри длинное описание на английском. Короткие комменты через косую
