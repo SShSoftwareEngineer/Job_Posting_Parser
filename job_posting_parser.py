@@ -11,7 +11,7 @@ async def main(client_telegram, priv_settings, message_types): an asynchronous f
 processing messages from the Telegram chat
 """
 
-from collections import Counter, namedtuple
+from collections import Counter
 import re
 import aiohttp
 from telethon import TelegramClient  # type: ignore
@@ -37,10 +37,6 @@ def load_env(file_path: str) -> dict:
                 key, value = line.strip().split('=')
                 env_vars[key] = value
     return env_vars
-
-
-# A tuple containing job posting data / Кортеж, который содержит данные вакансии
-Vacancy = namedtuple('Vacancy', ['text', 'url', 'html'])
 
 
 async def main(client_telegram, priv_settings, message_types):
@@ -80,31 +76,31 @@ async def main(client_telegram, priv_settings, message_types):
                     vacancies = re.split(config.get_vacancy_pattern(), source.text)
                     # Processing vacancies / Обрабатываем вакансии
                     for _ in vacancies:
-                        vacancy = Vacancy(text=_, url='', html='')
-                        if vacancy.text.strip(' *_\n'):
+                        vacancy = {'text': _, 'url': '', 'html': ''}
+                        if vacancy['text'].strip(' *_\n'):
                             # Extracting the job vacancy URL / Извлекаем URL вакансии
-                            vacancy.url = re.search(config.get_url_pattern(), vacancy.text)[0]
+                            vacancy['url'] = re.search(config.get_url_pattern(), vacancy['text'])[0]
                             # Retrieving the HTML code of the job vacancy page / Получаем HTML-код страницы вакансии
                             try:
-                                async with http_session.get(str(vacancy.url)) as response:
+                                async with http_session.get(str(vacancy['url'])) as response:
                                     match response.status:
                                         case 200:
-                                            vacancy.html = await response.text()
+                                            vacancy['html'] = await response.text()
                                         case 403 | 404 | 429:
-                                            vacancy.html = HTTP_ERRORS.get(response.status)
+                                            vacancy['html'] = HTTP_ERRORS.get(response.status)
                                         case _:
-                                            vacancy.html = f'Error {response.status}'
+                                            vacancy['html'] = f'Error {response.status}'
                             except aiohttp.ClientError as e:
-                                vacancy.html = f'Error {e}'
+                                vacancy['html'] = f'Error {e}'
                             # Appending an access error message if the IP was blocked
                             # Дописываем сообщение об ошибке доступа, если IP был заблокирован
-                            if re.search(r'Your IP address.*?has been blocked', vacancy.html):
-                                vacancy.html = f'{HTTP_ERRORS.get("IP blocked")}. {vacancy.html}'
+                            if re.search(r'Your IP address.*?has been blocked', vacancy['html']):
+                                vacancy['html'] = f'{HTTP_ERRORS.get("IP blocked")}. {vacancy['html']}'
                             # Saving the vacancy message to the list of detailed messages
                             # Сохраняем сообщение о вакансии в список детальных сообщений
                             details.append(
-                                VacancyMessage(source=source, text=vacancy.text.strip(' \n'),
-                                               raw_html=vacancy.html.strip(' \n')))
+                                VacancyMessage(source=source, text=vacancy['text'].strip(' \n'),
+                                               raw_html=vacancy['html'].strip(' \n')))
                     message_types['vacancy'] += 1
                 case 'statistic':
                     # Saving the statistics message to the list of detailed messages

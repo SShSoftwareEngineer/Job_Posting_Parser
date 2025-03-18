@@ -183,7 +183,7 @@ class Config(BaseModel):
     def get_vacancy_pattern(self) -> str:
         """ Returns a template of separators for messages containing multiple job vacancies
             Возвращает регулярное выражение (шаблон) из разделителей для сообщений с несколькими вакансиями """
-        patterns = getattr(self.message_configs.vacancy.text_parsing_signs, 'splitter_pattern', [])
+        patterns = self.message_configs.vacancy.text_parsing_signs.get('splitter_pattern', [])
         return fr'([\s\S]*?(?:{"|".join(patterns)}).*)(?:\n\n)?'
 
     def get_export_to_excel_sql(self, table_name: str) -> str:

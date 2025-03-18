@@ -194,7 +194,6 @@
         "vacancy.company_type": "Company Type",
         "vacancy.offices": "Company Offices",
         "vacancy.notes": "Notes",
-        "vacancy.temp_card": "temp_card",
         "parsing_status": "parsing_status"
       }
     },
