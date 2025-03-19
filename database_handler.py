@@ -22,8 +22,8 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship,
 
 from config_handler import TABLE_NAMES, config
 
-# MS Excel file name for database export / Имя файла MS Excel для экспорта базы данных
-_OUTPUT_EXCEL_FILE = 'result.xlsx'
+# SQLite and MS Excel file name / Имя файла SQLite и MS Excel для экспорта базы данных
+_DATA_BASE_NAME = 'vacancies'
 
 # A dictionary containing descriptions of HTTP request errors / Описание ошибок HTTP-запросов
 HTTP_ERRORS = {
@@ -502,9 +502,9 @@ def export_data_to_excel():
     # Determining the available Excel file name for export
     # Определяем доступное имя Excel файла для экспорта
     excel_file_suffix = 1
-    excel_file_name = _OUTPUT_EXCEL_FILE
+    excel_file_name = f'{_DATA_BASE_NAME}.xlsx'
     while os.path.exists(excel_file_name):
-        excel_file_name = _OUTPUT_EXCEL_FILE.replace('.xlsx', f'({excel_file_suffix}).xlsx')
+        excel_file_name = excel_file_name.replace('.xlsx', f'({excel_file_suffix}).xlsx')
         excel_file_suffix += 1
     # Writing DataFrame(s) to the corresponding sheets of the Excel file
     # Записываем DataFrame(s) в соответствующие листы файла Excel
@@ -564,7 +564,7 @@ def html_to_text(html: str) -> str:
 
 # Connecting to the database. Creating a database connection and session
 # Подключение к базе данных. Создаем соединение с базой данных и сессию
-engine = create_engine('sqlite:///vacancies.db')
+engine = create_engine(f'sqlite:///{_DATA_BASE_NAME}.db')
 session = Session(engine)
 # Creating tables in the database if they do not exist
 # Создаем таблицы в базе данных, если они отсутствуют
