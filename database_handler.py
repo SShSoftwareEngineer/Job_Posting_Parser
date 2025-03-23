@@ -52,7 +52,7 @@ class SourceMessage(Base):  # pylint: disable=too-few-public-methods
     text (Mapped[str]): message text
     """
     __tablename__ = TABLE_NAMES['source']
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
     message_id: Mapped[int] = mapped_column(Integer, unique=True)
     date: Mapped[datetime]
     message_type: Mapped[str] = mapped_column(String, nullable=True)
@@ -115,7 +115,7 @@ class VacancyMessage(Base):  # pylint: disable=too-few-public-methods, disable=t
     notes (Mapped[str]): notes
     """
     __tablename__ = TABLE_NAMES['vacancy']
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
     message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TABLE_NAMES['source']}.message_id'))
     source: Mapped[SourceMessage] = relationship(back_populates='vacancy')
     # Job parameters obtained from the Telegram message / Параметры вакансии, получаемые из сообщения Telegram
@@ -398,7 +398,7 @@ class StatisticMessage(Base):  # pylint: disable=too-few-public-methods
     candidates_per_week (Mapped[int]): number of candidates in the last week
     """
     __tablename__ = TABLE_NAMES['statistic']
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
     message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TABLE_NAMES['source']}.message_id'))
     source: Mapped[SourceMessage] = relationship(back_populates='statistic')
     vacancies_in_30d: Mapped[int] = mapped_column(Integer, nullable=True)
@@ -483,7 +483,7 @@ class ServiceMessage(Base):  # pylint: disable=too-few-public-methods
     source (Mapped[SourceMessage]): link to the original message
     """
     __tablename__ = TABLE_NAMES['service']
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
     message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TABLE_NAMES['source']}.message_id'))
     source: Mapped[SourceMessage] = relationship(back_populates='service')
 
