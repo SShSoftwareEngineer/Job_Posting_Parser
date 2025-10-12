@@ -23,7 +23,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship,
 from config_handler import TABLE_NAMES, config
 
 # SQLite and MS Excel file name / Имя файла SQLite и MS Excel для экспорта базы данных
-_DATA_BASE_NAME = 'vacancies'
+_DATA_BASE_NAME = 'full_vacancies'
 
 # A dictionary containing descriptions of HTTP request errors / Описание ошибок HTTP-запросов
 HTTP_ERRORS = {
@@ -57,8 +57,11 @@ class SourceMessage(Base):  # pylint: disable=too-few-public-methods
     date: Mapped[datetime]
     message_type: Mapped[str] = mapped_column(String, nullable=True)
     text: Mapped[str] = mapped_column(Text, nullable=True)
+    # Relationships to 'VacancyMessage' table
     vacancy: Mapped["VacancyMessage"] = relationship(back_populates="source")
+    # Relationships to 'StatisticMessage' table
     statistic: Mapped["StatisticMessage"] = relationship(back_populates="source")
+    # Relationships to 'ServiceMessage' table
     service: Mapped["ServiceMessage"] = relationship(back_populates="source")
 
     def __init__(self, **kw: Any):
@@ -116,8 +119,6 @@ class VacancyMessage(Base):  # pylint: disable=too-few-public-methods, disable=t
     """
     __tablename__ = TABLE_NAMES['vacancy']
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TABLE_NAMES['source']}.message_id'))
-    source: Mapped[SourceMessage] = relationship(back_populates='vacancy')
     # Job parameters obtained from the Telegram message / Параметры вакансии, получаемые из сообщения Telegram
     text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     t_position: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -145,6 +146,9 @@ class VacancyMessage(Base):  # pylint: disable=too-few-public-methods, disable=t
     # Service parameters used for parsing debugging / Служебные параметры, используемые при отладке парсинга
     parsing_status: Mapped[str] = mapped_column(String, nullable=True)
     temp_card: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    # Relationships to 'SourceMessage' table
+    message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TABLE_NAMES['source']}.message_id'))
+    source: Mapped[SourceMessage] = relationship(back_populates='vacancy')
 
     def __init__(self, **kw: Any):
         """
@@ -399,8 +403,6 @@ class StatisticMessage(Base):  # pylint: disable=too-few-public-methods
     """
     __tablename__ = TABLE_NAMES['statistic']
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TABLE_NAMES['source']}.message_id'))
-    source: Mapped[SourceMessage] = relationship(back_populates='statistic')
     vacancies_in_30d: Mapped[int] = mapped_column(Integer, nullable=True)
     candidates_online: Mapped[int] = mapped_column(Integer, nullable=True)
     min_salary: Mapped[int] = mapped_column(Integer, nullable=True)
@@ -409,6 +411,9 @@ class StatisticMessage(Base):  # pylint: disable=too-few-public-methods
     vacancies_per_week: Mapped[int] = mapped_column(Integer, nullable=True)
     candidates_per_week: Mapped[int] = mapped_column(Integer, nullable=True)
     parsing_status: Mapped[str] = mapped_column(Integer, nullable=True)
+    # Relationships to 'SourceMessage' table
+    message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TABLE_NAMES['source']}.message_id'))
+    source: Mapped[SourceMessage] = relationship(back_populates='statistic')
 
     def __init__(self, **kw: Any):
         """
@@ -484,6 +489,7 @@ class ServiceMessage(Base):  # pylint: disable=too-few-public-methods
     """
     __tablename__ = TABLE_NAMES['service']
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    # Relationships to 'SourceMessage' table
     message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TABLE_NAMES['source']}.message_id'))
     source: Mapped[SourceMessage] = relationship(back_populates='service')
 

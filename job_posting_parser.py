@@ -122,14 +122,14 @@ async def main(client_telegram, priv_settings, message_types):
 
 if __name__ == '__main__':
     # Loading confidential Telegram API parameters / Загрузка конфиденциальных параметров Telegram API
-    private_settings = load_env('.env')
+    private_settings = load_env('configs/.env')
     # Initializing the message counter for all types / Инициализация счетчика сообщений всех типов
     message_types_counter: dict[str, int] = Counter()
     # Creating a client for working with Telegram / Создание клиента для работы с Telegram
-    client = (TelegramClient(session='.session',  # MemorySession(),
-                             api_id=private_settings['APP_API_ID'],
-                             api_hash=private_settings['APP_API_HASH']).start(private_settings['PHONE'],
-                                                                              private_settings['PASSWORD']))
+    client = TelegramClient(session='.session',  # MemorySession(),
+                            api_id=private_settings['APP_API_ID'],
+                            api_hash=private_settings['APP_API_HASH']).start(private_settings['PHONE'],
+                                                                             private_settings['PASSWORD'])
     with client:
         client.loop.run_until_complete(main(client, private_settings, message_types_counter))
 
@@ -140,6 +140,4 @@ if __name__ == '__main__':
     print(f'Service:   {message_types_counter.get('service', 0)}')
     print(f'Unknown:   {message_types_counter.get('unknown', 0)}')
 
-# TODO: Unit тесты
-# TODO: продумать, как сделать демоверсию базы и экселя и как хранить настоящую, может переименовывать,
-#  а обрезать в сервисе по дате - какой-то срок
+# TODO: тесты

@@ -18,7 +18,7 @@ from typing import List, Dict
 from pydantic import BaseModel, ValidationError
 
 # Configuration file name in JSON format / Имя файла конфигурации в формате JSON
-_CONFIG_FILE_NAME = 'config.json'
+_CONFIG_FILE_NAME = 'configs/config.json'
 
 # Table names in the database for different types of messages / Имена таблиц в базе данных для разных типов сообщений
 TABLE_NAMES = {'vacancy': 'vacancy_msgs',

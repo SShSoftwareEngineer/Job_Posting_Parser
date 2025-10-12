@@ -120,7 +120,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
+configs/.env
 .venv
 env/
 venv/
@@ -174,3 +174,4 @@ Old/
 /service_for_database.py
 /full_vacancies.db
 /full_vacancies.xlsx
+/Notes/
