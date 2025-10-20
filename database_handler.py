@@ -3,7 +3,7 @@ The module contains model classes, functions, and constants for working with an 
 
 HTTP_ERRORS: a dictionary containing descriptions of HTTP request errors
 class Base(DeclarativeBase): a declarative class for creating tables in the database
-class SourceMessage(Base): a model class for original Telegram messages
+class RawMessage(Base): a model class for original Telegram messages
 class VacancyMessage(Base): a model class for vacancy messages
 class StatisticMessage(Base): a model class for statistics messages
 class ServiceMessage(Base): a model class for service messages
@@ -11,19 +11,17 @@ def export_data_to_excel(): a function for exporting data from the database to M
 session: a session object for working with the database
 """
 
-import os
 import re
 from datetime import datetime
-from typing import Any, Optional, cast
+from pathlib import Path
+from typing import Any, Optional, cast, Type, Dict, TypeVar
 import pandas as pd
 from bs4 import BeautifulSoup
-from sqlalchemy import create_engine, Integer, ForeignKey, Text, String
+from sqlalchemy import create_engine, Integer, ForeignKey, Text, String, event
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, Session
-
-from config_handler import TABLE_NAMES, config
-
-# SQLite and MS Excel file name / Имя файла SQLite и MS Excel для экспорта базы данных
-_DATA_BASE_NAME = 'full_vacancies'
+from utils import html_to_text, str_to_numeric
+from config_handler import config
+from configs.config import GlobalConst, ModelNames, MessageSources, MessageTypes
 
 # A dictionary containing descriptions of HTTP request errors / Описание ошибок HTTP-запросов
 HTTP_ERRORS = {
@@ -38,7 +36,7 @@ class Base(DeclarativeBase):  # pylint: disable=too-few-public-methods
     """ A declarative class for creating tables in the database """
 
 
-class SourceMessage(Base):  # pylint: disable=too-few-public-methods
+class RawMessage(Base):  # pylint: disable=too-few-public-methods
     """
     A model class for original Telegram messages
 
@@ -47,27 +45,36 @@ class SourceMessage(Base):  # pylint: disable=too-few-public-methods
     Attributes:
     id (Mapped[int]): database record ID
     message_id (Mapped[int]): Telegram message ID
+    email_uid (Mapped[int]): Email message UID
     date (Mapped[datetime]): message date
-    message_type (Mapped[str]): message type
     text (Mapped[str]): message text
     """
-    __tablename__ = TABLE_NAMES['source']
+    __tablename__ = ModelNames.raw_messages.value
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    message_id: Mapped[int] = mapped_column(Integer, unique=True)
+    message_id: Mapped[Optional[int]] = mapped_column(Integer, unique=True, nullable=True)
+    email_uid: Mapped[Optional[int]] = mapped_column(Integer, unique=True, nullable=True)
     date: Mapped[datetime]
-    message_type: Mapped[str] = mapped_column(String, nullable=True)
     text: Mapped[str] = mapped_column(Text, nullable=True)
-    # Relationships to 'VacancyMessage' table
-    vacancy: Mapped["VacancyMessage"] = relationship(back_populates="source")
-    # Relationships to 'StatisticMessage' table
-    statistic: Mapped["StatisticMessage"] = relationship(back_populates="source")
-    # Relationships to 'ServiceMessage' table
-    service: Mapped["ServiceMessage"] = relationship(back_populates="source")
+    # Relationships to 'vacancy' table
+    vacancy: Mapped['Vacancy'] = relationship(back_populates='raw_message', cascade='all, delete-orphan')
+    # Relationships to 'statistics' table
+    statistic: Mapped['Statistic'] = relationship(back_populates='raw_message', uselist=False,
+                                                  cascade='all, delete-orphan')
+    # Relationships to 'service' table
+    service: Mapped['Service'] = relationship(back_populates='raw_message', uselist=False, cascade='all, delete-orphan')
+    # Relationships to 'message_sources' table
+    message_source_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{ModelNames.message_sources.value}.id'),
+                                                   index=True)
+    message_source: Mapped['MessageSource'] = relationship(back_populates='raw_message')
+    # Relationships to 'message_types' table
+    message_type_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{ModelNames.message_types.value}.id'),
+                                                 index=True)
+    message_type: Mapped['MessageType'] = relationship(back_populates='raw_message')
 
     def __init__(self, **kw: Any):
         """
-        Initialization of the SourceMessage object. Determining the message type based on its content
-        Инициализация объекта SourceMessage. Определение типа сообщения по содержимому
+        Initialization of the RawMessage object. Determining the message type based on its content
+        Инициализация объекта RawMessage. Определение типа сообщения по содержимому
         """
         super().__init__(**kw)
         self._set_message_type(config.message_signs)
@@ -84,7 +91,7 @@ class SourceMessage(Base):  # pylint: disable=too-few-public-methods
                 return
 
 
-class VacancyMessage(Base):  # pylint: disable=too-few-public-methods, disable=too-many-instance-attributes
+class Vacancy(Base):  # pylint: disable=too-few-public-methods, disable=too-many-instance-attributes
     """
     A model class for vacancy messages
 
@@ -93,62 +100,59 @@ class VacancyMessage(Base):  # pylint: disable=too-few-public-methods, disable=t
     Attributes:
     id (Mapped[int]): database record ID
     message_id (Mapped[int]): Telegram message ID
-    source (Mapped[SourceMessage]): link to the original message
-    text (Mapped[str]): message text
-    t_position (Mapped[str]): position, job title
-    company (Mapped[str]): company
+    source (Mapped[RawMessage]): link to the original message
+    position_msg (Mapped[str]): position, job title
+    position_web (Mapped[str]): position, job title on the website
     location (Mapped[str]): company location
-    t_experience (Mapped[int]): work experience requirements
-    min_salary (Mapped[int]): minimum salary
-    max_salary (Mapped[int]): maximum salary
-    url (Mapped[str]): full vacancy text URL on the website
-    subscription (Mapped[str]): subscription to job vacancy messages
-    raw_html (Mapped[str]): HTML code of the job posting page on the website
-    h_position (Mapped[str]): position, job title on the website
-    description (Mapped[str]): vacancy description on the website
-    lingvo (Mapped[str]): english language requirements
-    h_experience (Mapped[str]): work experience requirements on the website
-    work_type (Mapped[str]): work type (office, remote etc.)
-    candidate_locations (Mapped[str]): candidate locations under consideration
+    domain (Mapped[str]): company domain
+    experience_msg (Mapped[int]): work experience requirements
+    experience_web (Mapped[str]): work experience requirements on the website
     main_tech (Mapped[str]): the main technology of the project
     tech_stack (Mapped[str]): technology stack
-    domain (Mapped[str]): company domain
+    lingvo (Mapped[str]): english language requirements
+    work_type (Mapped[str]): work type (office, remote etc.)
+    candidate_locations (Mapped[str]): candidate locations under consideration
+    min_salary (Mapped[int]): minimum salary
+    max_salary (Mapped[int]): maximum salary
+    description (Mapped[str]): vacancy description on the website
+    company (Mapped[str]): company
     company_type (Mapped[str]): company type (outsource, outstaff, product etc.)
     offices (Mapped[str]): company offices locations
+    text (Mapped[str]): message text
+    subscription (Mapped[str]): subscription to job vacancy messages
     notes (Mapped[str]): notes
     """
-    __tablename__ = TABLE_NAMES['vacancy']
+    __tablename__ = ModelNames.vacancies.value
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    # Job parameters obtained from the Telegram message / Параметры вакансии, получаемые из сообщения Telegram
-    text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    t_position: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    company: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    position_msg: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    position_web: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     location: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    t_experience: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    min_salary: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    max_salary: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    subscription: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    # Job parameters obtained from the website / Параметры вакансии, получаемые с сайта
-    raw_html: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    h_position: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    lingvo: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    h_experience: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    work_type: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    candidate_locations: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    domain: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    experience_msg: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    experience_web: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     main_tech: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     tech_stack: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    domain: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    lingvo: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    work_type: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    candidate_locations: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    min_salary: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    max_salary: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    company: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     company_type: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     offices: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    subscription: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     # Service parameters used for parsing debugging / Служебные параметры, используемые при отладке парсинга
     parsing_status: Mapped[str] = mapped_column(String, nullable=True)
     temp_card: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    # Relationships to 'SourceMessage' table
-    message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TABLE_NAMES['source']}.message_id'))
-    source: Mapped[SourceMessage] = relationship(back_populates='vacancy')
+    # Relationships to 'raw_messages' table
+    raw_message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{ModelNames.raw_messages.value}.id'), index=True)
+    raw_message: Mapped['RawMessage'] = relationship(back_populates='vacancy')
+    # Relationships to 'vacancies_web' table
+    vacancy_web: Mapped['VacancyWeb'] = relationship(back_populates='vacancy', uselist=False,
+                                                     cascade='all, delete-orphan')
 
     def __init__(self, **kw: Any):
         """
@@ -191,11 +195,11 @@ class VacancyMessage(Base):  # pylint: disable=too-few-public-methods, disable=t
         parsing_str = re.sub(r'[*_`]+', '', str(self.text).split('\n', maxsplit=1)[0]).replace('  ', ' ')
         matching = re.split(f"{'|'.join(splitter)}", parsing_str)
         if matching:
-            self.t_position = matching[0]
+            self.position_msg = matching[0]
             if len(matching) > 1:
                 self.company = matching[1]
         else:
-            self.t_position = parsing_str
+            self.position_msg = parsing_str
 
     def _set_location_experience(self, pattern: list[str]):
         """
@@ -206,9 +210,9 @@ class VacancyMessage(Base):  # pylint: disable=too-few-public-methods, disable=t
         matching = re.search(f'(.+), {config.re_patterns.numeric}? ?({"|".join(pattern)})', parsing_str)
         if matching:
             self.location = matching.group(1)
-            self.t_experience = cast(int | None, str_to_numeric(matching.group(2)))
+            self.experience_msg = cast(int | None, str_to_numeric(matching.group(2)))
             if matching.group(2) is None and matching.group(3) is not None:
-                self.t_experience = 0
+                self.experience_msg = 0
 
     def _set_salary(self, range_pattern: str, salary_pattern: str):
         """
@@ -251,9 +255,9 @@ class VacancyMessage(Base):  # pylint: disable=too-few-public-methods, disable=t
         Checking whether the server returned an HTML page with an error
         Проверка, не вернул ли сервер HTML-страницу с ошибкой
         """
-        if self.raw_html is None:
+        if self.vacancy_web.raw_html is None:
             return False
-        matching = re.search(r'Error \d{3}', self.raw_html)
+        matching = re.search(r'Error \d{3}', self.vacancy_web.raw_html)
         if matching and matching.start(0) < 500:
             return True
         return False
@@ -282,11 +286,11 @@ class VacancyMessage(Base):  # pylint: disable=too-few-public-methods, disable=t
             return
         # Create a BeautifulSoup object for parsing the HTML page with the job posting text
         # Создаем объект BeautifulSoup для парсинга HTML-страницы с текстом вакансии
-        soup = BeautifulSoup(self.raw_html, 'lxml')
+        soup = BeautifulSoup(self.vacancy_web.raw_html, 'lxml')
         # Retrieving the job title
         # Получаем заголовок вакансии
         if soup.find('h1').find('span'):
-            self.h_position = html_to_text(str(soup.find('h1').find('span')))
+            self.position_web = html_to_text(str(soup.find('h1').find('span')))
         # Retrieving the job description
         # Получаем описание вакансии
         if soup.find('div', class_=patterns.html_classes.description):
@@ -315,7 +319,7 @@ class VacancyMessage(Base):  # pylint: disable=too-few-public-methods, disable=t
                         self._safety_add_string('lingvo', add_info)
                         additional_info[i] = ''
                     if re.search(f"{'|'.join(patterns.experience)}", add_info):
-                        self.h_experience = add_info
+                        self.experience_web = add_info
                         additional_info[i] = ''
                     if re.search(f"{'|'.join(patterns.work_type)}", add_info):
                         self.work_type = add_info
@@ -364,7 +368,7 @@ class VacancyMessage(Base):  # pylint: disable=too-few-public-methods, disable=t
         """
         # Validating the parsing results for the Telegram message text fields
         # Проверка результатов парсинга полей текста сообщения Telegram
-        counted_text_fields = [self.t_position, self.company, self.location, self.t_experience,
+        counted_text_fields = [self.position_msg, self.company, self.location, self.experience_msg,
                                self.url, self.subscription]
         parsing_text_status = 'OK '
         none_count = sum(1 for item in counted_text_fields if item is None)
@@ -372,7 +376,7 @@ class VacancyMessage(Base):  # pylint: disable=too-few-public-methods, disable=t
             parsing_text_status = f'{len(counted_text_fields) - none_count} / {len(counted_text_fields)}'
         # Validating the parsing results for the fields from the HTML code of the job vacancy page on the website
         # Проверка результатов парсинга полей из HTML-кода страницы вакансии на сайте
-        counted_html_fields = [self.h_position, self.description, self.lingvo, self.h_experience,
+        counted_html_fields = [self.position_web, self.description, self.lingvo, self.experience_web,
                                self.work_type, self.candidate_locations, self.main_tech, self.tech_stack,
                                self.domain, self.company_type]
         parsing_html_status = 'OK'
@@ -383,7 +387,7 @@ class VacancyMessage(Base):  # pylint: disable=too-few-public-methods, disable=t
         self.parsing_status = f'{parsing_text_status} _ {parsing_html_status}'
 
 
-class StatisticMessage(Base):  # pylint: disable=too-few-public-methods
+class Statistic(Base):  # pylint: disable=too-few-public-methods
     """
     A model class for statistics messages
 
@@ -392,7 +396,7 @@ class StatisticMessage(Base):  # pylint: disable=too-few-public-methods
     Attributes:
     id (Mapped[int]): database record ID
     message_id (Mapped[int]): Telegram message ID
-    source (Mapped[SourceMessage]): link to the original message
+    source (Mapped[RawMessage]): link to the original message
     vacancies_in_30d (Mapped[int]): number of job vacancies in the last 30 days
     candidates_online (Mapped[int]): number of candidates online
     min_salary (Mapped[int]): minimum salary
@@ -401,7 +405,7 @@ class StatisticMessage(Base):  # pylint: disable=too-few-public-methods
     vacancies_per_week (Mapped[int]): number of job vacancies in the last week
     candidates_per_week (Mapped[int]): number of candidates in the last week
     """
-    __tablename__ = TABLE_NAMES['statistic']
+    __tablename__ = ModelNames.statistics.value
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     vacancies_in_30d: Mapped[int] = mapped_column(Integer, nullable=True)
     candidates_online: Mapped[int] = mapped_column(Integer, nullable=True)
@@ -411,9 +415,11 @@ class StatisticMessage(Base):  # pylint: disable=too-few-public-methods
     vacancies_per_week: Mapped[int] = mapped_column(Integer, nullable=True)
     candidates_per_week: Mapped[int] = mapped_column(Integer, nullable=True)
     parsing_status: Mapped[str] = mapped_column(Integer, nullable=True)
-    # Relationships to 'SourceMessage' table
-    message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TABLE_NAMES['source']}.message_id'))
-    source: Mapped[SourceMessage] = relationship(back_populates='statistic')
+    # Relationships to 'RawMessage' table
+    raw_message_id: Mapped[int] = mapped_column(Integer,
+                                                ForeignKey(f'{ModelNames.raw_messages.value}.id', ondelete='CASCADE'),
+                                                index=True, unique=True)
+    raw_message: Mapped['RawMessage'] = relationship(back_populates='statistic')
 
     def __init__(self, **kw: Any):
         """
@@ -421,7 +427,7 @@ class StatisticMessage(Base):  # pylint: disable=too-few-public-methods
         Инициализация объекта StatisticMessage. Парсинг текста сообщения со статистикой
         """
         super().__init__(**kw)
-        statistic_signs = config.message_configs.statistic.text_parsing_signs
+        statistic_signs = config.message_configs.statistics.text_parsing_signs
         # Extracting numerical values from the Telegram message text
         # Извлечение числовых значений из текста сообщения Telegram
         self._set_numeric_attr('vacancies_in_30d', statistic_signs["vacancies_in_30d"])
@@ -447,7 +453,7 @@ class StatisticMessage(Base):  # pylint: disable=too-few-public-methods
         if getattr(self, field_name) is not None:
             return
         pattern = f"(?:({'|'.join(patterns)}):? +)({config.re_patterns.numeric})"
-        match = re.search(pattern, self.source.text)
+        match = re.search(pattern, self.raw_message.text)
         if match and len(match.groups()) >= 2:
             setattr(self, field_name, str_to_numeric(match.group(2)))
 
@@ -457,7 +463,7 @@ class StatisticMessage(Base):  # pylint: disable=too-few-public-methods
         Извлечение информации о зарплате из текста сообщения Telegram
         """
         pattern = f"(?:({'|'.join(patterns)}):? +){config.re_patterns.salary_range}"
-        match = re.search(pattern, self.source.text)
+        match = re.search(pattern, self.raw_message.text)
         if match and len(match.groups()) >= 3:
             self.min_salary = cast(int, str_to_numeric(match.group(2)))
             self.max_salary = cast(int, str_to_numeric(match.group(3)))
@@ -476,7 +482,7 @@ class StatisticMessage(Base):  # pylint: disable=too-few-public-methods
             self.parsing_status = 'OK'
 
 
-class ServiceMessage(Base):  # pylint: disable=too-few-public-methods
+class Service(Base):  # pylint: disable=too-few-public-methods
     """
     A model class for service messages
 
@@ -485,96 +491,151 @@ class ServiceMessage(Base):  # pylint: disable=too-few-public-methods
     Attributes:
     id (Mapped[int]): database record ID
     message_id (Mapped[int]): Telegram message ID
-    source (Mapped[SourceMessage]): link to the original message
+    source (Mapped[RawMessage]): link to the original message
     """
-    __tablename__ = TABLE_NAMES['service']
+    __tablename__ = ModelNames.service.value
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    # Relationships to 'SourceMessage' table
-    message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TABLE_NAMES['source']}.message_id'))
-    source: Mapped[SourceMessage] = relationship(back_populates='service')
+    # Relationships to 'RawMessage' table
+    raw_message_id: Mapped[int] = mapped_column(Integer,
+                                                ForeignKey(f'{ModelNames.raw_messages.value}.id', ondelete='CASCADE'),
+                                                index=True, unique=True)
+    raw_message: Mapped['RawMessage'] = relationship(back_populates='service')
 
 
-def export_data_to_excel():
+class VacancyWeb(Base):
     """
-    Exporting data from the database to an MS Excel file
-    Экспорт данных из БД в файл формата MS Excel
+    A model class for URLs
+    Класс-модель для URL-адресов
     """
-    data_frames = {}
-    # Импортируем данные из каждой таблицы в соответствующий DataFrame
-    # и устанавливаем имена столбцов для Excel
-    for key in TABLE_NAMES:
-        data_frames[key] = pd.read_sql(config.export_to_excel[key].sql, engine.connect())
-        data_frames[key].columns = config.export_to_excel[key].columns.values()
-    # Determining the available Excel file name for export
-    # Определяем доступное имя Excel файла для экспорта
-    excel_file_suffix = 1
-    excel_file_name = f'{_DATA_BASE_NAME}.xlsx'
-    while os.path.exists(excel_file_name):
-        excel_file_name = excel_file_name.replace('.xlsx', f'({excel_file_suffix}).xlsx')
-        excel_file_suffix += 1
-    # Writing DataFrame(s) to the corresponding sheets of the Excel file
-    # Записываем DataFrame(s) в соответствующие листы файла Excel
-    with pd.ExcelWriter(excel_file_name, engine="openpyxl") as writer:
-        for key in TABLE_NAMES:
-            data_frames[key].to_excel(writer, sheet_name=config.export_to_excel[key].sheet_name,
-                                      index=False, header=True, freeze_panes=(1, 1))
+    __tablename__ = ModelNames.vacancies_web.value
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    url: Mapped[str] = mapped_column(String, nullable=False)
+    raw_html: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    last_check: Mapped[Optional[datetime]]
+    status_code: Mapped[Optional[int]] = mapped_column(Integer)
+    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # Relationships to 'vacancies' table
+    vacancy_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{ModelNames.vacancies.value}.id', ondelete='CASCADE'),
+                                            index=True, unique=True)
+    vacancy: Mapped['Vacancy'] = relationship(back_populates='vacancy_web')
 
 
-def str_to_numeric(value: str | None) -> int | float | None:
+class MessageSource(Base):
     """
-    Safe conversion of a string to a numeric value (int or float)
-    Безопасное преобразование строки в числовое значение (int или float)
+    A model class for message sources
+    Класс-модель для источников сообщений
     """
-    result = None
-    if value is not None:
-        try:
-            if "." in value or "," in value:
-                result = float(value.replace(",", "."))
-            else:
-                result = int(value)
-        except (ValueError, AttributeError):
-            pass
-    if result is not None and not result % 1:
-        result = int(result)
-    return result
+    __tablename__ = ModelNames.message_sources.value
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    # Relationships to 'raw_messages' table
+    raw_message: Mapped['RawMessage'] = relationship(back_populates='message_source')
 
 
-def html_to_text(html: str) -> str:
+class MessageType(Base):
     """
-    Convert HTML text to plain text
-    Преобразование HTML-текста в обычный текст
+    A model class for message types
+    Класс-модель для типов сообщений
     """
-    # Replacing '\n' sequences with spaces.
-    # Заменяем последовательности '\n' на пробелы
-    text = re.sub(r'\n+', ' ', html)
-    # Replacing tags <p>, <div> with '\n'
-    # Заменяем теги <p>, <div> на '\n'
-    text = re.sub(r'</?(p|div)[^>]*>', '\n', text)
-    # Replacing tag <br> with '\n'
-    # Заменяем тег <br> на '\n'
-    text = re.sub(r'<br\s*/?>', '\n', text)
-    # Remove all remaining HTML tags
-    # Удаляем все оставшиеся HTML теги
-    text = re.sub(r'<[^>]+>', '', text)
-    # Removing extra spaces and empty lines
-    # Убираем лишние пробелы и пустые строки
-    text = re.sub(r'\n+', '\n', text).strip()
-    # Removing extra spaces at the beginning and end of each line
-    # Убираем лишние пробелы в начале и конце каждой строки
-    text = re.sub(r'^\s+|\s+$', '', text, flags=re.MULTILINE)
-    # Removing extra spaces in lines
-    # Удаляем лишние пробелы в строках
-    text = re.sub(r' +', ' ', text)
-    return text
+    __tablename__ = ModelNames.message_types.value
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    # Relationships to 'raw_messages' table
+    raw_message: Mapped['RawMessage'] = relationship(back_populates='message_type')
 
 
-# Connecting to the database. Creating a database connection and session
-# Подключение к базе данных. Создаем соединение с базой данных и сессию
-engine = create_engine(f'sqlite:///{_DATA_BASE_NAME}.db')
-session = Session(engine)
-# Creating tables in the database if they do not exist
-# Создаем таблицы в базе данных, если они отсутствуют
-Base.metadata.create_all(engine)
+# TypeVar for model classes, bound to Base
+ModelType = TypeVar('ModelType', bound=Base)
+
+
+class DatabaseHandler:
+    """
+    A class to represent handle database operations.
+    Класс для представления операций с базой данных.
+    """
+
+    def upsert_record(self, model_class: Type[ModelType],
+                      filter_fields: Dict[str, Any],
+                      update_fields: Dict[str, Any]) -> ModelType:
+        """
+        Универсальная функция для поиска и обновления/создания записи в любой модели БД
+        """
+        # Проверяем запись на существование
+        existing = self.session.query(model_class).filter_by(**filter_fields).first()
+        if existing:
+            # Обновляем существующую запись
+            for key, value in update_fields.items():
+                setattr(existing, key, value)
+        else:
+            # Создаем новую запись
+            existing = model_class(**{**filter_fields, **update_fields})
+            self.session.add(existing)
+            self.session.flush()  # Flush to get the ID if it's an autoincrement field
+        return existing
+
+    def setup_database_connection(self):
+        """
+        Настройка параметров подключения к базе данных SQLite
+        """
+
+        # Enforce foreign key constraints in SQLite
+        @event.listens_for(self.engine, "connect")
+        def set_sqlite_pragma(dbapi_conn, _):  # _ используется вместо необязательного параметра connection_record
+            cursor = dbapi_conn.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
+
+    def __init__(self):
+        """
+        Initializes the database handler by creating an engine, a session, and the necessary tables.
+        Инициализирует обработчик базы данных, создавая движок, сессию и необходимые таблицы.
+        """
+        # Connecting to the database. Creating a database connection and session
+        # Подключение к базе данных. Создаем соединение с базой данных и сессию
+        self.engine = create_engine(f'sqlite:///{GlobalConst.database_file}')
+        self.setup_database_connection()
+        self.session = Session(self.engine)
+        # Creating tables in the database if they do not exist
+        # Создаем таблицы в базе данных, если они отсутствуют
+        Base.metadata.create_all(self.engine)
+        # Проверяем наличие данных в статической таблице с источниками сообщений и добавляем их при необходимости
+        for message_source in MessageSources:
+            self.upsert_record(MessageSource, dict(id=message_source.value),
+                               dict(name=message_source.name))
+        # Проверяем наличие данных в статической таблице с типами сообщений и добавляем их при необходимости
+        for message_type in MessageTypes:
+            self.upsert_record(MessageType, dict(id=message_type.value),
+                               dict(name=message_type.name))
+        self.session.commit()
+
+    def export_data_to_excel(self):
+        """
+        Exporting data from the database to an MS Excel file
+        Экспорт данных из БД в файл формата MS Excel
+        """
+        data_frames = {}
+        # Импортируем данные из каждой таблицы в соответствующий DataFrame
+        # и устанавливаем имена столбцов для Excel
+        for table in ModelNames.get_table_names():
+            data_frames[table] = pd.read_sql(config.export_to_excel[table].sql, self.engine.connect())
+            data_frames[table].columns = config.export_to_excel[table].columns.values()
+        # Determining the available Excel file name for export
+        # Определяем доступное имя Excel файла для экспорта
+        excel_file_suffix = 1
+        excel_file_name = Path(f'{Path(GlobalConst.database_file).stem}.xlsx')
+        while excel_file_name.exists():
+            excel_file_name = Path(excel_file_name.as_posix().replace('.xlsx', f'({excel_file_suffix}).xlsx'))
+            excel_file_suffix += 1
+        # Writing DataFrame(s) to the corresponding sheets of the Excel file
+        # Записываем DataFrame(s) в соответствующие листы файла Excel
+        with pd.ExcelWriter(excel_file_name, engine="openpyxl") as writer:
+            for table in ModelNames.get_table_names():
+                data_frames[table].to_excel(writer, sheet_name=config.export_to_excel[table].sheet_name,
+                                            index=False, header=True, freeze_panes=(1, 1))
+
+
+# Создаем экземпляр DatabaseHandler()
+db_handler = DatabaseHandler()
 
 if __name__ == '__main__':
     pass

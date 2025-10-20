@@ -16,9 +16,8 @@ import re
 import aiohttp
 from telethon import TelegramClient  # type: ignore
 from tqdm.asyncio import tqdm
-from database_handler import SourceMessage, VacancyMessage, StatisticMessage, ServiceMessage, \
-    HTTP_ERRORS, session, config, export_data_to_excel
-
+from database_handler import db_handler, RawMessage, Vacancy, Statistic, Service, HTTP_ERRORS, config
+from configs.config import GlobalConst, HttpStatusCodes
 
 def load_env(file_path: str) -> dict:
     """
@@ -51,8 +50,8 @@ async def main(client_telegram, priv_settings, message_types):
     """
     # Determine the ID of the last message in the database / Определяем ID последнего сообщения в базе данных
     last_message_id = 0
-    if session.query(SourceMessage).count():
-        last_message_id = max(map(lambda x: x[0], (session.query(SourceMessage.message_id))))
+    if db_handler.session.query(RawMessage).count():
+        last_message_id = max(map(lambda x: x[0], (db_handler.session.query(RawMessage.message_id))))
     # Retrieving new messages from the chat / Получаем новые сообщения из чата
     bot = await client_telegram.get_entity(priv_settings['BOT_NAME'])
     messages_list = client_telegram.iter_messages(bot.id, reverse=True, min_id=last_message_id, wait_time=0.1)
@@ -64,14 +63,14 @@ async def main(client_telegram, priv_settings, message_types):
         # Processing the received list of messages / Обрабатываем полученный список сообщений
         async for message in tqdm(messages_list, total=messages_list.left, desc='Processing ', ncols=100):
             # Determining the type of source messages / Определяем тип исходных сообщений
-            source = SourceMessage(message_id=message.id, date=message.date, text=message.text)
+            source = RawMessage(message_id=message.id, date=message.date, text=message.text)
             if source.message_type is None:
                 message_types['unknown'] += 1
             details = []
             # Creating detailed messages based on the type of the source message
             # Создаем детальные сообщения в зависимости от типа исходного сообщения
             match source.message_type:
-                case 'vacancy':
+                case 'vacancies':
                     # Splitting the message into individual vacancies / Разбиваем сообщение на отдельные вакансии
                     vacancies = re.split(config.get_vacancy_pattern(), source.text)
                     # Processing vacancies / Обрабатываем вакансии
@@ -99,25 +98,25 @@ async def main(client_telegram, priv_settings, message_types):
                             # Saving the vacancy message to the list of detailed messages
                             # Сохраняем сообщение о вакансии в список детальных сообщений
                             details.append(
-                                VacancyMessage(source=source, text=vacancy['text'].strip(' \n'),
+                                Vacancy(source=source, text=vacancy['text'].strip(' \n'),
                                                raw_html=vacancy['html'].strip(' \n')))
                     message_types['vacancy'] += 1
-                case 'statistic':
+                case 'statistics':
                     # Saving the statistics message to the list of detailed messages
                     # Сохраняем сообщение со статистикой в список детальных сообщений
-                    details.append(StatisticMessage(source=source))
-                    message_types['statistic'] += 1
+                    details.append(Statistic(source=source))
+                    message_types['statistics'] += 1
                 case 'service':
                     # Saving the service message to the list of detailed messages
                     # Сохраняем сервисное сообщение в список детальных сообщений
-                    details.append(ServiceMessage(source=source))
+                    details.append(Service(raw_message=source))
                     message_types['service'] += 1
             # Writing the original and detailed messages to the session
             # Записываем исходное и детальные сообщения в сессию
-            session.add(source)
-            session.add_all(details)
+            db_handler.session.add(source)
+            db_handler.session.add_all(details)
             # Saving messages in the database / Сохраняем сообщения в базе данных
-            session.commit()
+            db_handler.session.commit()
 
 
 if __name__ == '__main__':
@@ -133,10 +132,10 @@ if __name__ == '__main__':
     with client:
         client.loop.run_until_complete(main(client, private_settings, message_types_counter))
 
-    export_data_to_excel()
+    db_handler.export_data_to_excel()
     print('   Report:')
-    print(f'Vacancy:   {message_types_counter.get('vacancy', 0)}')
-    print(f'Statistic: {message_types_counter.get('statistic', 0)}')
+    print(f'Vacancy:   {message_types_counter.get('vacancies', 0)}')
+    print(f'Statistic: {message_types_counter.get('statistics', 0)}')
     print(f'Service:   {message_types_counter.get('service', 0)}')
     print(f'Unknown:   {message_types_counter.get('unknown', 0)}')
 

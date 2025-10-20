@@ -1,7 +1,6 @@
 """
 The module is designed to work with a configuration file and contains constants and classes for working with it.
 
-TABLE_NAMES: dictionary with database table names for different message types
 HtmlClasses: names of HTML tag classes that correspond to required blocks in the HTML message file from the website
 HtmlParsingSigns: signatures for parsing HTML message files from the website
 VacancyMessageConfig: signatures for parsing Telegram vacancy messages and HTML message files from the website
@@ -17,14 +16,14 @@ import json
 from typing import List, Dict
 from pydantic import BaseModel, ValidationError
 
-# Configuration file name in JSON format / Имя файла конфигурации в формате JSON
-_CONFIG_FILE_NAME = 'configs/config.json'
+from configs.config import GlobalConst
+
 
 # Table names in the database for different types of messages / Имена таблиц в базе данных для разных типов сообщений
-TABLE_NAMES = {'vacancy': 'vacancy_msgs',
-               'statistic': 'statistic_msgs',
-               'service': 'service_msgs',
-               'source': 'source_msgs'}
+TABLE_NAMES = {'vacancy': 'vacancies',
+               'statistic': 'statistics',
+               'service': 'service',
+               'source': 'raw_messages'}
 
 
 class HtmlClasses(BaseModel):
@@ -220,7 +219,7 @@ def _read_config_data(config_file_name: str) -> Config:
 
 # Loads the configuration from a JSON file and replaces placeholders with real values
 # Загружает конфигурацию из файла и заменяет плейсхолдеры реальными значениями
-config = _read_config_data(_CONFIG_FILE_NAME)
+config = _read_config_data(GlobalConst.parse_config_file)
 config.resolve_patterns()
 
 if __name__ == '__main__':
