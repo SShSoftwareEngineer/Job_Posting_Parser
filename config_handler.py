@@ -16,14 +16,7 @@ import json
 from typing import List, Dict
 from pydantic import BaseModel, ValidationError
 
-from configs.config import GlobalConst
-
-
-# Table names in the database for different types of messages / Имена таблиц в базе данных для разных типов сообщений
-TABLE_NAMES = {'vacancy': 'vacancies',
-               'statistic': 'statistics',
-               'service': 'service',
-               'source': 'raw_messages'}
+from configs.config import GlobalConst, TableNames
 
 
 class HtmlClasses(BaseModel):
@@ -171,8 +164,8 @@ class Config(BaseModel):
         self.re_patterns.salary_range = self.re_patterns.salary_range.replace('{numeric_pattern}',
                                                                               self.re_patterns.numeric)
         # Заменяет placeholders в названиях таблиц в SQL запросах
-        for key in TABLE_NAMES:
-            self.export_to_excel[key].sql = self.get_export_to_excel_sql(key)
+        for item in TableNames:
+            self.export_to_excel[item.name].sql = self.get_export_to_excel_sql(item.name)
 
     def get_url_pattern(self) -> str:
         """ Returns a template for the URL of the full job posting on the website
@@ -191,8 +184,8 @@ class Config(BaseModel):
         sql = f"SELECT {', '.join(self.export_to_excel[table_name].columns.keys())} FROM {table_name}"
         if table_name != 'source':
             sql += f" JOIN source ON source.message_id = {table_name}.message_id"
-        for key, value in TABLE_NAMES.items():
-            sql = sql.replace(key, value)
+        for item in TableNames:
+            sql = sql.replace(item.name, item.value)
         return sql
 
 

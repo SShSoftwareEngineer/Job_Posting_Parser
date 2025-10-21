@@ -3,27 +3,6 @@ import re
 from dateutil.parser import parse
 
 
-def load_env(file_path: str) -> dict:
-    """
-    Loading confidential data for working with the Telegram API from the `.env` file.
-    Загрузка конфиденциальных данных для работы с Telegram API из файла .env
-
-    Arguments:
-    file_path (str): a confidential data file name
-    Returns:
-    dict: a confidential data dictionary
-    """
-    env_vars = {}
-    with open(file_path, 'r', encoding='utf-8') as file_env:
-        for line in file_env:
-            if not line.strip().startswith('#') and '=' in line:
-                key, value = line.strip().split('=')
-                if value.startswith("'") and value.endswith("'") or value.startswith('"') and value.endswith('"'):
-                    value = value[1:-1]
-                env_vars[key] = value
-    return env_vars
-
-
 def parse_date_string(date_str: str):
     """
     Parses a date string and returns a datetime object.
@@ -53,6 +32,7 @@ def str_to_numeric(value: str | None) -> int | float | None:
     if result is not None and not result % 1:
         result = int(result)
     return result
+
 
 def html_to_text(html: str) -> str:
     """

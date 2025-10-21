@@ -16,26 +16,10 @@ import re
 import aiohttp
 from telethon import TelegramClient  # type: ignore
 from tqdm.asyncio import tqdm
+from dotenv import dotenv_values
 from database_handler import db_handler, RawMessage, Vacancy, Statistic, Service, HTTP_ERRORS, config
-from configs.config import GlobalConst, HttpStatusCodes
-
-def load_env(file_path: str) -> dict:
-    """
-    Loading confidential data for working with the Telegram API from the `.env` file.
-    Загрузка конфиденциальных данных для работы с Telegram API из файла .env
-
-    Arguments:
-    file_path (str): a confidential data file name
-    Returns:
-    dict: a confidential data dictionary
-    """
-    env_vars = {}
-    with open(file_path, 'r', encoding='utf-8') as file_env:
-        for line in file_env:
-            if not line.strip().startswith('#') and '=' in line:
-                key, value = line.strip().split('=')
-                env_vars[key] = value
-    return env_vars
+from configs.config import GlobalConst
+import telegram_handler as tg_handler
 
 
 async def main(client_telegram, priv_settings, message_types):
@@ -99,7 +83,7 @@ async def main(client_telegram, priv_settings, message_types):
                             # Сохраняем сообщение о вакансии в список детальных сообщений
                             details.append(
                                 Vacancy(source=source, text=vacancy['text'].strip(' \n'),
-                                               raw_html=vacancy['html'].strip(' \n')))
+                                        raw_html=vacancy['html'].strip(' \n')))
                     message_types['vacancy'] += 1
                 case 'statistics':
                     # Saving the statistics message to the list of detailed messages
@@ -121,16 +105,14 @@ async def main(client_telegram, priv_settings, message_types):
 
 if __name__ == '__main__':
     # Loading confidential Telegram API parameters / Загрузка конфиденциальных параметров Telegram API
-    private_settings = load_env('configs/.env')
+    private_settings = dotenv_values(GlobalConst.private_settings_file)
     # Initializing the message counter for all types / Инициализация счетчика сообщений всех типов
     message_types_counter: dict[str, int] = Counter()
     # Creating a client for working with Telegram / Создание клиента для работы с Telegram
-    client = TelegramClient(session='.session',  # MemorySession(),
-                            api_id=private_settings['APP_API_ID'],
-                            api_hash=private_settings['APP_API_HASH']).start(private_settings['PHONE'],
-                                                                             private_settings['PASSWORD'])
-    with client:
-        client.loop.run_until_complete(main(client, private_settings, message_types_counter))
+    tg_client = tg_handler.init_tg_client(private_settings['APP_API_ID'], private_settings['APP_API_HASH'],
+                                          private_settings['PHONE'], private_settings['TELEGRAM_PASSWORD'])
+    with tg_client:
+        tg_client.loop.run_until_complete(main(tg_client, private_settings, message_types_counter))
 
     db_handler.export_data_to_excel()
     print('   Report:')

@@ -21,7 +21,7 @@ from sqlalchemy import create_engine, Integer, ForeignKey, Text, String, event
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, Session
 from utils import html_to_text, str_to_numeric
 from config_handler import config
-from configs.config import GlobalConst, ModelNames, MessageSources, MessageTypes
+from configs.config import GlobalConst, TableNames, MessageSources, MessageTypes
 
 # A dictionary containing descriptions of HTTP request errors / Описание ошибок HTTP-запросов
 HTTP_ERRORS = {
@@ -49,7 +49,7 @@ class RawMessage(Base):  # pylint: disable=too-few-public-methods
     date (Mapped[datetime]): message date
     text (Mapped[str]): message text
     """
-    __tablename__ = ModelNames.raw_messages.value
+    __tablename__ = TableNames.raw_message.value
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     message_id: Mapped[Optional[int]] = mapped_column(Integer, unique=True, nullable=True)
     email_uid: Mapped[Optional[int]] = mapped_column(Integer, unique=True, nullable=True)
@@ -63,11 +63,11 @@ class RawMessage(Base):  # pylint: disable=too-few-public-methods
     # Relationships to 'service' table
     service: Mapped['Service'] = relationship(back_populates='raw_message', uselist=False, cascade='all, delete-orphan')
     # Relationships to 'message_sources' table
-    message_source_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{ModelNames.message_sources.value}.id'),
+    message_source_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.message_source.value}.id'),
                                                    index=True)
     message_source: Mapped['MessageSource'] = relationship(back_populates='raw_message')
     # Relationships to 'message_types' table
-    message_type_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{ModelNames.message_types.value}.id'),
+    message_type_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.message_type.value}.id'),
                                                  index=True)
     message_type: Mapped['MessageType'] = relationship(back_populates='raw_message')
 
@@ -122,7 +122,7 @@ class Vacancy(Base):  # pylint: disable=too-few-public-methods, disable=too-many
     subscription (Mapped[str]): subscription to job vacancy messages
     notes (Mapped[str]): notes
     """
-    __tablename__ = ModelNames.vacancies.value
+    __tablename__ = TableNames.vacancy.value
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     position_msg: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     position_web: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -148,7 +148,7 @@ class Vacancy(Base):  # pylint: disable=too-few-public-methods, disable=too-many
     parsing_status: Mapped[str] = mapped_column(String, nullable=True)
     temp_card: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     # Relationships to 'raw_messages' table
-    raw_message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{ModelNames.raw_messages.value}.id'), index=True)
+    raw_message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.raw_message.value}.id'), index=True)
     raw_message: Mapped['RawMessage'] = relationship(back_populates='vacancy')
     # Relationships to 'vacancies_web' table
     vacancy_web: Mapped['VacancyWeb'] = relationship(back_populates='vacancy', uselist=False,
@@ -405,7 +405,7 @@ class Statistic(Base):  # pylint: disable=too-few-public-methods
     vacancies_per_week (Mapped[int]): number of job vacancies in the last week
     candidates_per_week (Mapped[int]): number of candidates in the last week
     """
-    __tablename__ = ModelNames.statistics.value
+    __tablename__ = TableNames.statistic.value
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     vacancies_in_30d: Mapped[int] = mapped_column(Integer, nullable=True)
     candidates_online: Mapped[int] = mapped_column(Integer, nullable=True)
@@ -417,7 +417,7 @@ class Statistic(Base):  # pylint: disable=too-few-public-methods
     parsing_status: Mapped[str] = mapped_column(Integer, nullable=True)
     # Relationships to 'RawMessage' table
     raw_message_id: Mapped[int] = mapped_column(Integer,
-                                                ForeignKey(f'{ModelNames.raw_messages.value}.id', ondelete='CASCADE'),
+                                                ForeignKey(f'{TableNames.raw_message.value}.id', ondelete='CASCADE'),
                                                 index=True, unique=True)
     raw_message: Mapped['RawMessage'] = relationship(back_populates='statistic')
 
@@ -493,11 +493,11 @@ class Service(Base):  # pylint: disable=too-few-public-methods
     message_id (Mapped[int]): Telegram message ID
     source (Mapped[RawMessage]): link to the original message
     """
-    __tablename__ = ModelNames.service.value
+    __tablename__ = TableNames.service.value
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     # Relationships to 'RawMessage' table
     raw_message_id: Mapped[int] = mapped_column(Integer,
-                                                ForeignKey(f'{ModelNames.raw_messages.value}.id', ondelete='CASCADE'),
+                                                ForeignKey(f'{TableNames.raw_message.value}.id', ondelete='CASCADE'),
                                                 index=True, unique=True)
     raw_message: Mapped['RawMessage'] = relationship(back_populates='service')
 
@@ -507,7 +507,7 @@ class VacancyWeb(Base):
     A model class for URLs
     Класс-модель для URL-адресов
     """
-    __tablename__ = ModelNames.vacancies_web.value
+    __tablename__ = TableNames.vacancy_web.value
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     url: Mapped[str] = mapped_column(String, nullable=False)
     raw_html: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -515,7 +515,7 @@ class VacancyWeb(Base):
     status_code: Mapped[Optional[int]] = mapped_column(Integer)
     attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     # Relationships to 'vacancies' table
-    vacancy_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{ModelNames.vacancies.value}.id', ondelete='CASCADE'),
+    vacancy_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.vacancy.value}.id', ondelete='CASCADE'),
                                             index=True, unique=True)
     vacancy: Mapped['Vacancy'] = relationship(back_populates='vacancy_web')
 
@@ -525,7 +525,7 @@ class MessageSource(Base):
     A model class for message sources
     Класс-модель для источников сообщений
     """
-    __tablename__ = ModelNames.message_sources.value
+    __tablename__ = TableNames.message_source.value
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     # Relationships to 'raw_messages' table
@@ -537,7 +537,7 @@ class MessageType(Base):
     A model class for message types
     Класс-модель для типов сообщений
     """
-    __tablename__ = ModelNames.message_types.value
+    __tablename__ = TableNames.message_type.value
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     # Relationships to 'raw_messages' table
@@ -616,7 +616,7 @@ class DatabaseHandler:
         data_frames = {}
         # Импортируем данные из каждой таблицы в соответствующий DataFrame
         # и устанавливаем имена столбцов для Excel
-        for table in ModelNames.get_table_names():
+        for table in TableNames.get_table_names():
             data_frames[table] = pd.read_sql(config.export_to_excel[table].sql, self.engine.connect())
             data_frames[table].columns = config.export_to_excel[table].columns.values()
         # Determining the available Excel file name for export
@@ -629,7 +629,7 @@ class DatabaseHandler:
         # Writing DataFrame(s) to the corresponding sheets of the Excel file
         # Записываем DataFrame(s) в соответствующие листы файла Excel
         with pd.ExcelWriter(excel_file_name, engine="openpyxl") as writer:
-            for table in ModelNames.get_table_names():
+            for table in TableNames.get_table_names():
                 data_frames[table].to_excel(writer, sheet_name=config.export_to_excel[table].sheet_name,
                                             index=False, header=True, freeze_panes=(1, 1))
 

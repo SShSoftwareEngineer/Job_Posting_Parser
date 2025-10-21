@@ -43,25 +43,25 @@ class HttpStatusCodes(Enum):
     BadGateway = 502
     ServiceUnavailable = 503
 
-
-class ModelNames(Enum):
+# Table names in the database for different types of messages / Имена таблиц в базе данных для разных типов сообщений
+class TableNames(Enum):
     """
     Constants for database table names.
     """
-    raw_messages = 'raw_messages'
-    vacancies = 'vacancies'
-    statistics = 'statistics'
+    raw_message = 'raw_messages'
+    vacancy = 'vacancies'
+    statistic = 'statistics'
     service = 'service'
-    message_sources = 'message_sources'
-    message_types = 'message_types'
-    vacancies_web = 'vacancies_web'
+    message_source = 'message_sources'
+    message_type = 'message_types'
+    vacancy_web = 'vacancies_web'
 
     @staticmethod
     def get_table_names() -> list[str]:
         """
         Returns a list of model names and their corresponding table names.
         """
-        return [item.value for item in ModelNames]
+        return [item.value for item in TableNames]
 
 
 if __name__ == '__main__':
