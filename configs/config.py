@@ -1,56 +1,105 @@
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
 
+@dataclass
 class GlobalConst:
     private_settings_file = Path(
-        'configs') / f'.env'  # Confidential data file name / Имя файла с конфиденциальными данными
-    database_file = f'full_vacancies.db'  # SQLite and MS Excel file name / Имя файла SQLite и MS Excel для экспорта базы данных
-    parse_config_file = 'configs/config.json'  # Configuration file name in JSON format / Имя файла конфигурации в формате JSON
+        'configs') / '.env'  # Confidential data file name / Имя файла с конфиденциальными данными
+    database_file = 'full_vacancies.db'  # SQLite file name / Имя файла SQLite базы данных
+    excel_file = 'exported_data.xlsx'  # Exported MS Excel file name / Имя экспортируемого файла MS Excel
+    parse_config_file = 'configs/config.json'  # Configuration data file in JSON format / Имя файла конфигурации в формате JSON
 
 
 class MessageSources(Enum):
     """
     Constants for different sources of messages.
     """
-    Email = 1
-    Telegram = 2
+    EMAIL = 1
+    TELEGRAM = 2
 
 
 class MessageTypes(Enum):
     """
     Constants for different types of messages.
     """
-    Source = 1
-    Vacancy = 2
-    Statistic = 3
-    Service = 4
-    Unknown = 5
+    TG_VACANCY = (1, 'tg_vacancy')
+    TG_STATISTIC = (2, 'tg_statistic')
+    TG_SERVICE = (3, 'tg_service')
+    TG_UNKNOWN = (4, 'tg_unknown')
+
+    def __init__(self, type_id: int, config_name: str):
+        """
+        Initializes the MessageTypes enum.
+        Инициализация MessageTypes enum.
+        Attributes:
+            type_id (int): The ID of the file type.
+            config_name (str): Type name in config.toml file.
+        """
+        self.type_id = type_id
+        self.config_name = config_name
+
+    @classmethod
+    def get_message_type_by_config_name(cls, config_name: str) -> 'MessageTypes':
+        """
+        Returns the MessageTypes for a given type message.
+        Возвращает MessageTypes для заданного сообщения.
+        Attributes:
+            config_name (str): The type name in config file.
+        Returns:
+            MessageTypes: The corresponding MessageTypes enum member.
+        """
+
+        result = MessageTypes.TG_UNKNOWN
+        for item in cls:
+            if item.config_name == config_name:
+                result = item
+        return result
+
+    @classmethod
+    def get_message_type_id(cls, message_type: 'MessageTypes') -> int:
+        """
+        Returns the MessageTypes ID for a given message type.
+        Возвращает MessageTypes ID для заданного типа сообщения.
+        Attributes:
+            message_type (MessageTypes): The message type.
+        Returns:
+            ID: The corresponding ID.
+        """
+
+        result = MessageTypes.TG_UNKNOWN.value[0]
+        for item in cls:
+            if item.name == message_type.name:
+                result = item.value[0]
+        return result
 
 
 class HttpStatusCodes(Enum):
     """
     Constants for HTTP status codes.
     """
-    Ok = 200
-    NoContent = 204
-    BadRequest = 400
-    Unauthorized = 401
-    Forbidden = 403
-    Not_Found = 404
-    TooManyRequests = 429
-    InternalServerError = 500
-    BadGateway = 502
-    ServiceUnavailable = 503
+    OK = 200
+    NOCONTENT = 204
+    BADREQUEST = 400
+    UNAUTHORIZED = 401
+    FORBIDDEN = 403
+    NOTFOUND = 404
+    TOOMANYREQUESTS = 429
+    INTERNALSERVERERROR = 500
+    BADGATEWAY = 502
+    SERVICEUNAVAILABLE = 503
 
-# Table names in the database for different types of messages / Имена таблиц в базе данных для разных типов сообщений
+
+@dataclass
 class TableNames(Enum):
     """
-    Constants for database table names.
+    Table names in the database for different types of messages.
+    Имена таблиц в базе данных для разных типов сообщений.
     """
     raw_message = 'raw_messages'
     vacancy = 'vacancies'
-    statistic = 'statistics'
+    statistic = 'statistic'
     service = 'service'
     message_source = 'message_sources'
     message_type = 'message_types'

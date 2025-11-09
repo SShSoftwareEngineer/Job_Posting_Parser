@@ -1,9 +1,20 @@
+from datetime import datetime
 from email.header import decode_header
 from typing import cast
 
 from imapclient import IMAPClient
 from email import message_from_bytes, policy
 from email.message import EmailMessage
+
+
+class EmailContentDetector:
+    email_uid: int | None
+    date: datetime
+    html: str | None
+    message_type: str | None
+
+    def type_define(self):
+        pass
 
 
 def decode_email_field(field_value):

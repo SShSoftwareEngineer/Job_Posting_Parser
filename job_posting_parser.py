@@ -27,7 +27,7 @@ async def main(client_telegram, priv_settings, message_types):
     Receiving and processing messages from a Telegram chat
     Получение и обработка сообщений из чата Telegram
 
-    Arguments:
+    Attributes:
     client_telegram: a Telegram client object
     priv_settings: a confidential data dictionary for working with the Telegram API
     message_types: a counter for messages of all types

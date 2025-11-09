@@ -1,5 +1,5 @@
 {
-  "message_signs": {
+  "tg_message_signs": {
     "vacancy": [
       "__Subscription:__",
       "[^ ]Subscription",
@@ -157,43 +157,43 @@
     }
   },
   "export_to_excel": {
-    "source": {
-      "sheet_name": "Source",
+    "raw_messages": {
+      "sheet_name": "Raw Message",
       "sql": "",
       "columns": {
-        "source.date": "Date, time",
-        "source.message_id": "Message ID",
-        "source.message_type": "Type",
-        "source.text": "Text"
+        "raw_messages.date": "Date, time",
+        "raw_messages.message_id": "Message ID",
+        "raw_messages.message_type": "Type",
+        "raw_messages.text": "Text"
       }
     },
-    "vacancy": {
+    "vacancies": {
       "sheet_name": "Vacancy",
       "sql": "",
       "columns": {
-        "source.date": "Date, time",
-        "vacancy.message_id": "Message ID",
-        "vacancy.email_uid": "Message ID",
-        "vacancy.position_msg": "Position Msg",
-        "vacancy.position_web": "Position Web",
-        "vacancy.location": "Location",
-        "vacancy.domain": "Domain",
-        "vacancy.experience_msg": "Experience Msg",
-        "vacancy.experience_web": "Experience Web",
-        "vacancy.main_tech": "Main Technology",
-        "vacancy.tech_stack": "Tech Stack",
-        "vacancy.lingvo": "Lingvo",
-        "vacancy.work_type": "Work Type",
-        "vacancy.candidate_locations": "Candidate Locations",
-        "vacancy.min_salary": "Min Salary",
-        "vacancy.max_salary": "Max Salary",
-        "vacancy.description": "Job Description",
-        "vacancy.company": "Company",
-        "vacancy.company_type": "Company Type",
-        "vacancy.offices": "Company Offices",
-        "vacancy.text": "Telegram Text",
-        "vacancy.subscription": "Subscription",
-        "vacancy.notes": "Notes",
+        "raw_messages.date": "Date, time",
+        "vacancies.message_id": "Message ID",
+        "vacancies.email_uid": "Message ID",
+        "vacancies.position_msg": "Position Msg",
+        "vacancies.position_web": "Position Web",
+        "vacancies.location": "Location",
+        "vacancies.domain": "Domain",
+        "vacancies.experience_msg": "Experience Msg",
+        "vacancies.experience_web": "Experience Web",
+        "vacancies.main_tech": "Main Technology",
+        "vacancies.tech_stack": "Tech Stack",
+        "vacancies.lingvo": "Lingvo",
+        "vacancies.work_type": "Work Type",
+        "vacancies.candidate_locations": "Candidate Locations",
+        "vacancies.min_salary": "Min Salary",
+        "vacancies.max_salary": "Max Salary",
+        "vacancies.description": "Job Description",
+        "vacancies.company": "Company",
+        "vacancies.company_type": "Company Type",
+        "vacancies.offices": "Company Offices",
+        "vacancies.text": "Telegram Text",
+        "vacancies.subscription": "Subscription",
+        "vacancies.notes": "Notes",
         "parsing_status": "parsing_status"
       }
     },
@@ -201,7 +201,7 @@
       "sheet_name": "Statistic",
       "sql": "",
       "columns": {
-        "source.date": "Date, time",
+        "raw_messages.date": "Date, time",
         "statistic.message_id": "Message ID",
         "statistic.vacancies_in_30d": "Vacancies in 30 days",
         "statistic.candidates_online": "Candidates online",
@@ -217,9 +217,9 @@
       "sheet_name": "Service",
       "sql": "",
       "columns": {
-        "source.date": "Date, time",
+        "raw_messages.date": "Date, time",
         "service.message_id": "Message ID",
-        "source.text": "Text"
+        "raw_messages.text": "Text"
       }
     }
   },

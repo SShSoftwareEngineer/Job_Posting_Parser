@@ -1,0 +1,55 @@
+# Сигнатуры для распознавания типов сообщений Telegram
+[tg_messages_signs]
+# Сигнатуры для типа 'vacancy'
+tg_vacancy = ["__Subscription:__", "[^ ]Subscription", "__Подписка:__", "Подписка"]
+# Сигнатуры для типа 'statistic'
+tg_statistic = ["Статистика на Джині за запитом", "Статистика на Djinni за запитом",
+    "Статистика на Джинне по запросу", "Statistics on Djinni for the query"]
+# Сигнатуры для типа 'service'
+tg_service = ["Активные подписки", "Active Subscriptions",
+    "Поставил на паузу подписку", "Снял с паузы подписку",
+    "Волшебные слова", "Magic words",
+    "Новая команда у бота", "Новая команда",
+    "Подписку добавил", "Добавить все равно", "__Подсказка__",
+    "/add", "/delete all", "/howmuch", "/help", "/list", "/login", "/pause", "/start",
+    "/subscriptions", "/salaries", "/tips_on", "/unpause"]
+
+# Сигнатуры для определения параметров вакансии из текста вакансий Telegram
+[tg_vacancy_text_signs]
+# Определение позиции и компании
+position_company = [" в "]
+# Определение локации и опыта соискателя
+location_experience = ["год опыта", "года опыта", "лет опыта",
+    "year of experience", "years of experience",
+    "Без опыта", "без опыта", "No experience"]
+# Определение названия подписки на рассылку
+subscription = ["__Subscription:__", "Subscription:", "__Подписка:__", "Подписка:"]
+# Определение разделителя между несколькикми вакансиями в одном сообщении
+splitter_pattern = ["Subscription", "__Подписка:__", "Подписка"]
+
+# Сигнатуры для определения параметров статистики из текста вакансий Telegram
+[tg_statistic_text_signs]
+# Определение количества вакансий за последние 30 дней
+vacancies_in_30d = ["Вакансий опубликовано", "Вакансии онлайн", "Вакансій за 30 днів", "Вакансий за 30 дней",
+    "Job ads for 30 days"]
+# Кандидатов онлайн
+candidates_online = ["Кандидатов в поиске", "Кандидати онлайн", "Кандидаты онлайн", "Candidates online"]
+# Зарплатная вилка
+salary = ["Вилка по зарплаті", "Вилка по зарплате", "Salary range"]
+# Откликов на одну вакансию
+responses_to_vacancies = ["Відгуків на одну вакансію", "Откликов на одну вакансию", "Applications per job posting"]
+# Вакансий за неделю
+vacancies_per_week = ["Вакансій", "Вакансий", "Jobs"]
+# Кандидатов за неделю
+candidates_per_week = ["Кандидатів", "Кандидатов", "Candidates"]
+
+# regex_patterns
+[regex_patterns]
+# URL вакансии на сайте Djinni
+url = "https?:\\/\\/djinni.co\\/.*"
+# Числовой шаблон
+numeric = "([-+]?(?:\\d*[.,]\\d+|\\d+))"
+# Числовой шаблон для зарплаты
+salary = "\\$?{numeric_pattern}"
+# Числовой шаблон для диапазона зарплаты
+salary_range = "\\$?{numeric_pattern}-{numeric_pattern}"
