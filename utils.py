@@ -1,12 +1,19 @@
 import re
+from datetime import datetime
 
 from dateutil.parser import parse
 
 
-def parse_date_string(date_str: str):
+def parse_date_string(date_str: str) -> datetime | None:
     """
     Parses a date string and returns a datetime object.
+    Парсит строку даты и возвращает объект datetime.
+    Attributes:
+        date_str (str): Date string to parse
+    Returns:
+        datetime | None: Parsed datetime object or None if parsing fails
     """
+
     if not date_str:
         return None
     try:

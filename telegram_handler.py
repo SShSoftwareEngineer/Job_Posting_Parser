@@ -22,13 +22,14 @@ def init_tg_client(api_id, api_hash, phone, password=None) -> TelegramClient:
 def get_new_messages(tg_client: TelegramClient, bot_name: str, last_date: datetime) -> List[Message]:
     # Получаем ID бота
     bot = loop.run_until_complete(tg_client.get_entity(bot_name))
-    # Устанавливаем параметры фильтрации по минимальной дате через id сообщений
-    message_from = loop.run_until_complete(
-        tg_client.get_messages(entity=bot.id, offset_date=last_date, limit=1))
     # Формируем параметры фильтра для получения сообщений
     message_filters = dict(entity=bot.id, reverse=True, wait_time=0.1)
-    message_filters['min_id'] = message_from[0].id if message_from else 0
+    # Устанавливаем параметры фильтрации по минимальной дате через id сообщений
+    message_filters['min_id'] = 0
     message_filters['max_id'] = maxsize
+    if last_date is not None:
+        message_from = loop.run_until_complete(tg_client.get_messages(entity=bot.id, offset_date=last_date, limit=1))
+        message_filters['min_id'] = message_from[0].id if message_from else 0
     # Получаем новые сообщения из чата
     message_list = loop.run_until_complete(tg_client.get_messages(**message_filters))
     return message_list

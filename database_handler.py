@@ -53,6 +53,8 @@ class RawMessage(Base):  # pylint: disable=too-few-public-methods
     message_id: Mapped[Optional[int]] = mapped_column(Integer, unique=True, nullable=True)
     email_uid: Mapped[Optional[int]] = mapped_column(Integer, unique=True, nullable=True)
     text: Mapped[str] = mapped_column(Text, nullable=True)
+    html: Mapped[str] = mapped_column(Text, nullable=True)
+    parsing_error: Mapped[str] = mapped_column(String, nullable=True)
     # Relationships to 'vacancy' table
     vacancy: Mapped[List['Vacancy']] = relationship(back_populates='raw_message', cascade='all, delete-orphan')
     # Relationships to 'statistics' table
@@ -144,7 +146,8 @@ class Vacancy(Base):  # pylint: disable=too-few-public-methods, disable=too-many
     notes: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     text_data_hash: Mapped[str] = mapped_column(String)
     # Service parameters used for parsing debugging / Служебные параметры, используемые при отладке парсинга
-    parsing_status: Mapped[str] = mapped_column(String, nullable=True)
+    text_parsing_error: Mapped[str] = mapped_column(String, nullable=True)
+    html_parsing_error: Mapped[str] = mapped_column(String, nullable=True)
     temp_card: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     # Relationships to 'raw_messages' table
     raw_message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.raw_message.value}.id'), index=True,
@@ -413,7 +416,7 @@ class Statistic(Base):  # pylint: disable=too-few-public-methods
     responses_to_vacancies: Mapped[int] = mapped_column(Integer, nullable=True)
     vacancies_per_week: Mapped[int] = mapped_column(Integer, nullable=True)
     candidates_per_week: Mapped[int] = mapped_column(Integer, nullable=True)
-    parsing_status: Mapped[str] = mapped_column(Integer, nullable=True)
+    parsing_error: Mapped[str] = mapped_column(String, nullable=True)
     # Relationships to 'RawMessage' table
     raw_message_id: Mapped[int] = mapped_column(Integer,
                                                 ForeignKey(f'{TableNames.raw_message.value}.id', ondelete='CASCADE'),
@@ -513,6 +516,7 @@ class VacancyWeb(Base):
     last_check: Mapped[Optional[datetime]]
     status_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     attempts: Mapped[int] = mapped_column(Integer, default=0)
+    parsing_error: Mapped[str] = mapped_column(String, nullable=True)
     # Relationships to 'vacancies' table
     vacancy_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.vacancy.value}.id', ondelete='CASCADE'),
                                             nullable=True)

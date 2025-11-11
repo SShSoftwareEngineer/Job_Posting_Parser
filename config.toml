@@ -11,6 +11,7 @@ tg_service = ["Активные подписки", "Active Subscriptions",
     "Волшебные слова", "Magic words",
     "Новая команда у бота", "Новая команда",
     "Подписку добавил", "Добавить все равно", "__Подсказка__",
+    "создания подписки напишите", "Удалил все подписки",
     "/add", "/delete all", "/howmuch", "/help", "/list", "/login", "/pause", "/start",
     "/subscriptions", "/salaries", "/tips_on", "/unpause"]
 
@@ -31,7 +32,7 @@ splitter_pattern = ["Subscription", "__Подписка:__", "Подписка"]
 [tg_statistic_text_signs]
 # Определение количества вакансий за последние 30 дней
 vacancies_in_30d = ["Вакансий опубликовано", "Вакансии онлайн", "Вакансій за 30 днів", "Вакансий за 30 дней",
-    "Job ads for 30 days"]
+    "Job ads for 30 days", "Jobs for 30 days"]
 # Кандидатов онлайн
 candidates_online = ["Кандидатов в поиске", "Кандидати онлайн", "Кандидаты онлайн", "Candidates online"]
 # Зарплатная вилка

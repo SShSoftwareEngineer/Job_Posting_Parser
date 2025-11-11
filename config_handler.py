@@ -26,6 +26,7 @@ class TgMessagesSigns(BaseModel):
     tg_statistic: list[str]
     tg_service: list[str]
 
+
 class TgStatisticTextSigns(BaseModel):
     vacancies_in_30d: list[str]
     candidates_online: list[str]
@@ -73,8 +74,31 @@ try:
 except ValidationError as err:
     print(f'Error in [regex_patterns] section: {err}')
 
+regex_patterns.salary = regex_patterns.salary.replace('{numeric_pattern}', regex_patterns.numeric)
+regex_patterns.salary_range = regex_patterns.salary_range.replace('{numeric_pattern}', regex_patterns.numeric)
+
+
 pass
 
+# -----------------------------------------------------------------------------------------------------------
+
+def resolve_patterns(self):
+    """
+    Replaces placeholders in the configuration with real values
+    Заменяет placeholders в конфигурации, подставляя реальные значения
+    """
+
+    # Replaces placeholders in regular expressions (templates)
+    # Заменяет placeholders в регулярных выражениях (шаблонах)
+    regex_patterns.salary = regex_patterns.salary.replace('{numeric_pattern}', regex_patterns.numeric)
+    regex_patterns.salary_range = regex_patterns.salary_range.replace('{numeric_pattern}', regex_patterns.numeric)
+
+    # # Replaces placeholders in table names in SQL queries / Заменяет placeholders в названиях таблиц в SQL запросах
+    # for item in self.export_to_excel.keys():
+    #     self.export_to_excel[item].sql = self.get_export_to_excel_sql(item)
+
+
+# -----------------------------------------------------------------------------------------------------------
 
 class Config(BaseModel):
     """

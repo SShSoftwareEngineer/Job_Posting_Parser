@@ -1,26 +1,28 @@
-from datetime import datetime
 from email.header import decode_header
 from typing import cast
-
 from imapclient import IMAPClient
 from email import message_from_bytes, policy
 from email.message import EmailMessage
 
+from configs.config import MessageTypes
 
-class EmailContentDetector:
-    email_uid: int | None
-    date: datetime
-    html: str | None
-    message_type: str | None
 
-    def type_define(self):
-        pass
+def init_imap_client(host: str, port: int, timeout: float, username: str, password: str) -> IMAPClient:
+    """
+    Инициализирует клиент IMAP Email
+    """
+
+    global _imap_client
+    _imap_client = IMAPClient(host=host, port=port, use_uid=True, timeout=timeout)
+    _imap_client.login(username=username, password=password)
+    return _imap_client
 
 
 def decode_email_field(field_value):
     """
     Функция декодирования полей письма
     """
+
     if not field_value:
         return ''
     decoded = ''
@@ -32,59 +34,36 @@ def decode_email_field(field_value):
     return decoded
 
 
-def get_email_list(host: str, port: int, username: str, password: str, folder_name: str, since_date: str):
-    with IMAPClient(host=host, port=port, use_uid=True) as client:
-        client.login(username=username, password=password)
+def get_email_list(imap_client: IMAPClient, folder_name: str, last_date: str) -> dict:
+    """
+    Получение списка писем из IMAP Email аккаунта
+    """
+
+    with imap_client as client:
         client.select_folder(folder_name)
-        # Получаем список ID писем
-        email_ids = client.search([u'SINCE', since_date])
+        # Получаем список UID писем
+        email_uids = client.search([u'SINCE', last_date])
         # Получаем тела писем
-        emails_list = client.fetch(email_ids, ['RFC822'])
+        emails_list = client.fetch(email_uids, [
+            'ENVELOPE',  # От кого, тема, дата
+            'FLAGS',  # Флаги (прочитано, важное и т.д.)
+            'RFC822.SIZE',  # Размер письма
+            'RFC822'  # Тело (полное письмо)
+        ])
     return emails_list
 
 
-def get_email_data(email_uid: int, email_body: dict):
-    email_message = cast(EmailMessage, message_from_bytes(email_body[b'RFC822'], policy=policy.default))
-    # Парсим письмо и извлекаем текст и вложения
-    email_data = {
-        'id': email_uid,
-        'from': decode_email_field(email_message['From']),
-        'subject': decode_email_field(email_message['Subject']),
-        'date': email_message['Date'],
-        'text': '',
-        'html': '',
-        'attachments': []
-    }
-    if email_message.is_multipart():
-        for part in email_message.walk():
-            content_type = part.get_content_type()
-            if content_type == 'text/plain':
-                email_data['text'] = part.get_content()
-            elif content_type == 'text/html':
-                email_data['html'] = part.get_content()
-            elif part.get_content_disposition() == 'attachment':
-                email_data['attachments'].append({
-                    'filename': part.get_filename(),
-                    'content': part.get_content()
-                })
-    else:
-        try:
-            content = email_message.get_content()
-            content_type = email_message.get_content_type()
-            if content_type == 'text/html':
-                email_data['html'] = content
-            else:
-                email_data['text'] = content
-        except (KeyError, AttributeError, UnicodeDecodeError, LookupError) as err:
-            # Ловим конкретные ошибки, которые могут возникнуть
-            print(err.__class__.__name__, str(err))
-            payload = email_message.get_payload(decode=True)
-            if isinstance(payload, bytes):
-                email_data['text'] = payload.decode('utf-8', errors='ignore')
-            else:
-                email_data['text'] = str(payload)
-    return email_data
+def email_detect_message_type(param) -> MessageTypes:
+    """
+    Определяет тип Email сообщения по его HTML или тексту
+    """
+    result = MessageTypes.EMAIL_UNKNOWN
+    email_content = ''
+    return result
 
+
+# Creating a client for working with IMAP Email / Создание клиента для работы с IMAP Email
+_imap_client = None
 
 if __name__ == '__main__':
     pass

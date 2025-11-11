@@ -28,6 +28,8 @@ class MessageTypes(Enum):
     TG_STATISTIC = (2, 'tg_statistic')
     TG_SERVICE = (3, 'tg_service')
     TG_UNKNOWN = (4, 'tg_unknown')
+    EMAIL_VACANCY = (5, 'email_vacancy')
+    EMAIL_UNKNOWN = (6, 'email_unknown')
 
     def __init__(self, type_id: int, config_name: str):
         """
