@@ -30,9 +30,6 @@ def processing_telegram_messages(tg_client: TelegramClient, bot_name: str, messa
     # Determine the last Telegram message date in the database / Определяем дату последнего Telegram сообщения в базе данных
     stmt = select(func.max(RawMessage.date)).where(RawMessage.message_source_id == MessageSources.TELEGRAM.value)
     last_date = db_handler.session.execute(stmt).scalar()
-
-    last_date=None
-
     # Retrieving new messages from the Telegram bot / Получаем новые сообщения из Telegram бота
     tg_messages = tg_handler.get_new_messages(tg_client, bot_name, last_date)
     # Обновляем счетчик типов сообщений / Updating the message types counter
@@ -83,11 +80,11 @@ def processing_telegram_messages(tg_client: TelegramClient, bot_name: str, messa
                 messages_counter.update({f'{db_raw_message.message_type.name} {'added' if added else 'updated'}': 1})
             case MessageTypes.TG_SERVICE.name:
                 # Saving the service message to the database / Сохраняем сервисное сообщение в базу данных
-                db_service, added = db_handler.upsert_record(Service, {'raw_message_id': db_raw_message.id}, {})
+                db_service, added = db_handler.upsert_record(Service, {'raw_message_id': db_raw_message.id},
+                                                             {'text': db_raw_message.text,
+                                                              'raw_message': db_raw_message})
                 # Обновляем счетчик типов сообщений / Updating the message types counter
                 messages_counter.update({f'{db_raw_message.message_type.name} {'added' if added else 'updated'}': 1})
-        # Committing changes to the database / Фиксируем изменения в базе данных
-        db_handler.session.commit()
     return messages_counter
 
 
@@ -130,28 +127,26 @@ def processing_email_messages(imap_client: IMAPClient, folder_name: str, message
         db_raw_message, added = db_handler.upsert_record(RawMessage, filter_fields, parsing_data)
         # Обновляем счетчик типов сообщений / Updating the message types counter
         messages_counter.update({f'EMAIL_RAW {'added' if added else 'updated'}': 1})
-
-    # for message in tg_messages:
-    #     # Processing the message based on its type / Обрабатываем сообщения в зависимости от их типа
-    #     match db_raw_message.message_type.name:
-    #         case MessageTypes.TG_VACANCY.name:
-    #             # Parsing the vacancy message / Парсим сообщение с вакансией
-    #             parsing_data = TgVacancyTextParser().parse(text=db_raw_message.text)
-    #             # Создаем объект объявления о вакансии на сайте / Creating a job vacancy object on the site
-    #             db_vacancy_web, added = db_handler.upsert_record(VacancyWeb, {'url': parsing_data['url']}, {})
-    #             del parsing_data['url']
-    #             # Обновляем счетчик типов сообщений / Updating the message types counter
-    #             messages_counter.update({f'TG_URL {'added' if added else 'updated'}': 1})
-    #             # Getting the hash value of the vacancy data to check for duplicates
-    #             # Получаем хэш параметров вакансии для проверки на дубликаты
-    #             json_str = json.dumps(parsing_data, sort_keys=True, ensure_ascii=False)
-    #             hash_value = hashlib.md5(json_str.encode('utf-8')).hexdigest()
-    #             # Saving the vacancy message to the database / Сохраняем сообщение с вакансией в базу данных
-    #             db_vacancy, added = db_handler.upsert_record(Vacancy, {'text_data_hash': hash_value}, parsing_data)
-    #             db_vacancy.vacancy_web.append(db_vacancy_web)
-    #             db_raw_message.vacancy.append(db_vacancy)
-    #             # Обновляем счетчик типов сообщений / Updating the message types counter
-    #             messages_counter.update({f'{db_raw_message.message_type.name} {'added' if added else 'updated'}': 1})
+        # Processing the message based on its type / Обрабатываем сообщения в зависимости от их типа
+        match db_raw_message.message_type.name:
+            case MessageTypes.EMAIL_VACANCY.name:
+                # Parsing the vacancy message / Парсим сообщение с вакансией
+                parsing_data = TgVacancyTextParser().parse(text=db_raw_message.text)
+                # Создаем объект объявления о вакансии на сайте / Creating a job vacancy object on the site
+                db_vacancy_web, added = db_handler.upsert_record(VacancyWeb, {'url': parsing_data['url']}, {})
+                del parsing_data['url']
+                # Обновляем счетчик типов сообщений / Updating the message types counter
+                messages_counter.update({f'TG_URL {'added' if added else 'updated'}': 1})
+                # Getting the hash value of the vacancy data to check for duplicates
+                # Получаем хэш параметров вакансии для проверки на дубликаты
+                json_str = json.dumps(parsing_data, sort_keys=True, ensure_ascii=False)
+                hash_value = hashlib.md5(json_str.encode('utf-8')).hexdigest()
+                # Saving the vacancy message to the database / Сохраняем сообщение с вакансией в базу данных
+                db_vacancy, added = db_handler.upsert_record(Vacancy, {'text_data_hash': hash_value}, parsing_data)
+                db_vacancy.vacancy_web.append(db_vacancy_web)
+                db_raw_message.vacancy.append(db_vacancy)
+                # Обновляем счетчик типов сообщений / Updating the message types counter
+                messages_counter.update({f'{db_raw_message.message_type.name} {'added' if added else 'updated'}': 1})
 
     return messages_counter
 
@@ -164,8 +159,10 @@ def main():
     # Creating a client for working with Telegram / Создание клиента для работы с Telegram
     tg_client = tg_handler.init_tg_client(private_settings['APP_API_ID'], private_settings['APP_API_HASH'],
                                           private_settings['PHONE'], private_settings['TELEGRAM_PASSWORD'])
-    # Retrieving and processing new Telegram messages / Получение и обработка новых сообщений Telegram
-    messages_counter = processing_telegram_messages(tg_client, private_settings['BOT_NAME'], messages_counter)
+    # Retrieving, processing and saving to database new Telegram messages
+    # Получение, обработка и сохранение в базе данных новых сообщений Telegram
+    with db_handler.session.begin():
+        messages_counter = processing_telegram_messages(tg_client, private_settings['BOT_NAME'], messages_counter)
 
     print('   Report:')
     for item in sorted(messages_counter.items()):
@@ -174,8 +171,10 @@ def main():
     # Creating a client for working with IMAP / Создание клиента для работы с IMAP
     imap_client = init_imap_client(private_settings['IMAP_HOST'], int(private_settings['IMAP_PORT']), 10,
                                    private_settings['USERNAME'], private_settings['IMAP_PASSWORD'])
-    # Retrieving and processing new Email messages / Получение и обработка новых Email сообщений
-    messages_counter = processing_email_messages(imap_client, private_settings['FOLDER_NAME'], messages_counter)
+    # Retrieving, processing and saving to database new Email messages
+    # Получение, обработка и сохранение в базе данных новых Email сообщений
+    with db_handler.session.begin():
+        messages_counter = processing_email_messages(imap_client, private_settings['FOLDER_NAME'], messages_counter)
 
     print('   Report:')
     for item in sorted(messages_counter.items()):

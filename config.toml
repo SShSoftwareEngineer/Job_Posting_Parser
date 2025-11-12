@@ -1,4 +1,4 @@
-# Сигнатуры для распознавания типов сообщений Telegram
+# Сигнатуры для распознавания типов сообщений Telegram, class TgMessagesSigns
 [tg_messages_signs]
 # Сигнатуры для типа 'vacancy'
 tg_vacancy = ["__Subscription:__", "[^ ]Subscription", "__Подписка:__", "Подписка"]
@@ -15,7 +15,7 @@ tg_service = ["Активные подписки", "Active Subscriptions",
     "/add", "/delete all", "/howmuch", "/help", "/list", "/login", "/pause", "/start",
     "/subscriptions", "/salaries", "/tips_on", "/unpause"]
 
-# Сигнатуры для определения параметров вакансии из текста вакансий Telegram
+# Сигнатуры для определения параметров вакансии из текста вакансий Telegram, class TgVacancyTextSigns
 [tg_vacancy_text_signs]
 # Определение позиции и компании
 position_company = [" в "]
@@ -28,7 +28,7 @@ subscription = ["__Subscription:__", "Subscription:", "__Подписка:__", "
 # Определение разделителя между несколькикми вакансиями в одном сообщении
 splitter_pattern = ["Subscription", "__Подписка:__", "Подписка"]
 
-# Сигнатуры для определения параметров статистики из текста вакансий Telegram
+# Сигнатуры для определения параметров статистики из текста вакансий Telegram, class TgStatisticTextSigns
 [tg_statistic_text_signs]
 # Определение количества вакансий за последние 30 дней
 vacancies_in_30d = ["Вакансий опубликовано", "Вакансии онлайн", "Вакансій за 30 днів", "Вакансий за 30 дней",
@@ -44,7 +44,7 @@ vacancies_per_week = ["Вакансій", "Вакансий", "Jobs"]
 # Кандидатов за неделю
 candidates_per_week = ["Кандидатів", "Кандидатов", "Candidates"]
 
-# regex_patterns
+# regex_patterns, class RegexPatterns
 [regex_patterns]
 # URL вакансии на сайте Djinni
 url = "https?:\\/\\/djinni.co\\/.*"
@@ -54,3 +54,10 @@ numeric = "([-+]?(?:\\d*[.,]\\d+|\\d+))"
 salary = "\\$?{numeric_pattern}"
 # Числовой шаблон для диапазона зарплаты
 salary_range = "\\$?{numeric_pattern}-{numeric_pattern}"
+
+
+# Сигнатуры для распознавания типов Email сообщений, class EmailMessagesSigns
+# Сигнатуры для типа 'vacancy'
+[[email_messages_signs.email_vacancy]]
+tag = "div"
+class = "card"

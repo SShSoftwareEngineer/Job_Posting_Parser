@@ -71,56 +71,36 @@ class RawMessage(Base):  # pylint: disable=too-few-public-methods
                                                  index=True)
     message_type: Mapped['MessageType'] = relationship(back_populates='raw_message')
 
-    # def __init__(self, **kw: Any):
-    #     """
-    #     Initialization of the RawMessage object. Determining the message type based on its content
-    #     Инициализация объекта RawMessage. Определение типа сообщения по содержимому
-    #     """
-    #     super().__init__(**kw)
-    #     # self._set_message_type(config.tg_message_signs)
-
-    # def _set_message_type(self, tg_message_signs: dict):
-    #     """
-    #     Determining the message type based on its content
-    #     Определяет тип сообщения по содержимому
-    #     """
-    #     for message_type, patterns in tg_message_signs.items():
-    #         matching = re.search(f"{'|'.join(patterns)}", self.text)
-    #         if matching:
-    #             self.message_type = message_type
-    #             return
-
 
 class Vacancy(Base):  # pylint: disable=too-few-public-methods, disable=too-many-instance-attributes
     """
     A model class for vacancy messages
-
     Класс-модель для сообщений о вакансиях
-
     Attributes:
-    id (Mapped[int]): database record ID
-    message_id (Mapped[int]): Telegram message ID
-    source (Mapped[RawMessage]): link to the original message
-    position_msg (Mapped[str]): position, job title
-    position_web (Mapped[str]): position, job title on the website
-    location (Mapped[str]): company location
-    domain (Mapped[str]): company domain
-    experience_msg (Mapped[int]): work experience requirements
-    experience_web (Mapped[str]): work experience requirements on the website
-    main_tech (Mapped[str]): the main technology of the project
-    tech_stack (Mapped[str]): technology stack
-    lingvo (Mapped[str]): english language requirements
-    work_type (Mapped[str]): work type (office, remote etc.)
-    candidate_locations (Mapped[str]): candidate locations under consideration
-    min_salary (Mapped[int]): minimum salary
-    max_salary (Mapped[int]): maximum salary
-    description (Mapped[str]): vacancy description on the website
-    company (Mapped[str]): company
-    company_type (Mapped[str]): company type (outsource, outstaff, product etc.)
-    offices (Mapped[str]): company offices locations
-    text (Mapped[str]): message text
-    subscription (Mapped[str]): subscription to job vacancy messages
-    notes (Mapped[str]): notes
+        id (Mapped[int]): database record ID
+        message_id (Mapped[int]): Telegram message ID
+        source (Mapped[RawMessage]): link to the original message
+        position_msg (Mapped[str]): position, job title
+        position_web (Mapped[str]): position, job title on the website
+        location (Mapped[str]): company location
+        domain (Mapped[str]): company domain
+        experience_msg (Mapped[int]): work experience requirements
+        experience_web (Mapped[str]): work experience requirements on the website
+        main_tech (Mapped[str]): the main technology of the project
+        tech_stack (Mapped[str]): technology stack
+        lingvo (Mapped[str]): english language requirements
+        work_type (Mapped[str]): work type (office, remote etc.)
+        candidate_locations (Mapped[str]): candidate locations under consideration
+        min_salary (Mapped[int]): minimum salary
+        max_salary (Mapped[int]): maximum salary
+        description_msg (Mapped[str]): vacancy description on the website
+        description_web (Mapped[str]): vacancy description on the website
+        company (Mapped[str]): company
+        company_type (Mapped[str]): company type (outsource, outstaff, product etc.)
+        offices (Mapped[str]): company offices locations
+        text (Mapped[str]): message text
+        subscription (Mapped[str]): subscription to job vacancy messages
+        notes (Mapped[str]): notes
     """
     __tablename__ = TableNames.vacancy.value  # Table name in the database / Имя таблицы в базе данных
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
@@ -137,16 +117,19 @@ class Vacancy(Base):  # pylint: disable=too-few-public-methods, disable=too-many
     candidate_locations: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     min_salary: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     max_salary: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    job_desc_msg: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    job_desc_eml: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    job_desc_web: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     company: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     company_type: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     offices: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    subscription: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    subscription_msg: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    subscription_eml: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     text_data_hash: Mapped[str] = mapped_column(String)
     # Service parameters used for parsing debugging / Служебные параметры, используемые при отладке парсинга
     text_parsing_error: Mapped[str] = mapped_column(String, nullable=True)
+    eml_parsing_error: Mapped[str] = mapped_column(String, nullable=True)
     html_parsing_error: Mapped[str] = mapped_column(String, nullable=True)
     temp_card: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     # Relationships to 'raw_messages' table
@@ -164,21 +147,7 @@ class Vacancy(Base):  # pylint: disable=too-few-public-methods, disable=too-many
     #     super().__init__(**kw)
     #     vacancy_text_signs = config.message_configs.vacancy.text_parsing_signs
     #     vacancy_html_signs = config.message_configs.vacancy.html_parsing_signs
-    #     # Extracting the position and company name from the Telegram message text
-    #     # Извлечение позиции, названия компании из текста сообщения Telegram
-    #     self._set_position_company(vacancy_text_signs["position_company"])
-    #     # Extracting the company location and experience requirements from the Telegram message text
-    #     # Извлечение локации компании, опыта работы из текста сообщения Telegram
-    #     self._set_location_experience(vacancy_text_signs["location_experience"])
-    #     # Extracting salary information from the Telegram message text
-    #     # Извлечение информации о зарплате из текста сообщения Telegram
-    #     self._set_salary(config.re_patterns.salary_range, config.re_patterns.salary)
-    #     # Extracting full vacancy text URL on the website from the Telegram message text
-    #     # Извлечение URL вакансии на сайте из текста сообщения Telegram
-    #     self._set_url(config.get_url_pattern())
-    #     # Extracting subscription to job vacancy messages from the Telegram message text
-    #     # Извлечение информации о подписке рассылки из текста сообщения Telegram
-    #     self._set_subscription(vacancy_text_signs["subscription"])
+
     #     # Parsing job posting information from the HTML code of the job posting page on the website
     #     # Парсинг информации о вакансии из HTML-кода страницы вакансии на сайте
     #     self._vacancy_html_parsing(vacancy_html_signs)
@@ -189,68 +158,6 @@ class Vacancy(Base):  # pylint: disable=too-few-public-methods, disable=too-many
     #     # Проверка результатов парсинга всех полей и установка статуса парсинга вакансии
     #     self._set_parsing_status()
 
-    # def _set_position_company(self, splitter: list[str]):
-    #     """
-    #     Extracting the position and company name from the Telegram message text
-    #     Извлечение позиции, названия компании из текста сообщения Telegram
-    #     """
-    #     parsing_str = re.sub(r'[*_`]+', '', str(self.text).split('\n', maxsplit=1)[0]).replace('  ', ' ')
-    #     matching = re.split(f"{'|'.join(splitter)}", parsing_str)
-    #     if matching:
-    #         self.position_msg = matching[0]
-    #         if len(matching) > 1:
-    #             self.company = matching[1]
-    #     else:
-    #         self.position_msg = parsing_str
-    #
-    # def _set_location_experience(self, pattern: list[str]):
-    #     """
-    #     Extracting the company location and experience requirements from the Telegram message text
-    #     Извлечение локации компании, требований к опыту работы из текста сообщения Telegram
-    #     """
-    #     parsing_str = re.sub(r'[*_`]+', '', str(self.text).split('\n')[1]).replace('  ', ' ')
-    #     matching = re.search(f'(.+), {config.re_patterns.numeric}? ?({"|".join(pattern)})', parsing_str)
-    #     if matching:
-    #         self.location = matching.group(1)
-    #         self.experience_msg = cast(int | None, str_to_numeric(matching.group(2)))
-    #         if matching.group(2) is None and matching.group(3) is not None:
-    #             self.experience_msg = 0
-    #
-    # def _set_salary(self, range_pattern: str, salary_pattern: str):
-    #     """
-    #     Extracting salary information from the Telegram message text
-    #     Извлечение информации о зарплате из текста сообщения Telegram
-    #     """
-    #     parsing_str = re.sub(r'[*_`]+', '', str(self.text).split('\n')[1]).replace('  ', ' ')
-    #     matching = re.search(fr'{range_pattern}\Z', parsing_str)
-    #     if matching:
-    #         if len(matching.groups()) == 2:
-    #             self.min_salary = cast(int | None, str_to_numeric(matching.group(1)))
-    #             self.max_salary = cast(int | None, str_to_numeric(matching.group(2)))
-    #     else:
-    #         matching = re.search(fr'{salary_pattern}\Z', parsing_str)
-    #         if matching:
-    #             self.min_salary = cast(int | None, str_to_numeric(matching.group(1)))
-    #             self.max_salary = self.min_salary
-    #
-    # def _set_url(self, pattern: str):
-    #     """
-    #     Extracting full vacancy text URL on the website from the Telegram message text
-    #     Извлечение URL вакансии на сайте из текста сообщения Telegram
-    #     """
-    #     matching = re.search(pattern, str(self.text))
-    #     if matching:
-    #         self.url = matching.group(0)
-    #
-    # def _set_subscription(self, pattern: list[str]):
-    #     """
-    #     Extracting subscription to job vacancy messages from the Telegram message text
-    #     Извлечение информации о подписке рассылки из текста сообщения Telegram
-    #     """
-    #     parsing_str = re.sub(r'[*_`]+', '', str(self.text).rsplit('\n', maxsplit=1)[-1]).replace('  ', ' ')
-    #     matching = re.sub(f'{"|".join(pattern)}', '', parsing_str)
-    #     if matching:
-    #         self.subscription = matching.strip('\"\' *_`')
     #
     # def _is_vacancy_html_error(self) -> bool:
     #     """
@@ -392,20 +299,18 @@ class Vacancy(Base):  # pylint: disable=too-few-public-methods, disable=too-many
 class Statistic(Base):  # pylint: disable=too-few-public-methods
     """
     A model class for statistics messages
-
     Класс-модель для сообщений со статистикой
-
     Attributes:
-    id (Mapped[int]): database record ID
-    message_id (Mapped[int]): Telegram message ID
-    source (Mapped[RawMessage]): link to the original message
-    vacancies_in_30d (Mapped[int]): number of job vacancies in the last 30 days
-    candidates_online (Mapped[int]): number of candidates online
-    min_salary (Mapped[int]): minimum salary
-    max_salary (Mapped[int]): maximum salary
-    responses_to_vacancies (Mapped[int]): number of responses per vacancy
-    vacancies_per_week (Mapped[int]): number of job vacancies in the last week
-    candidates_per_week (Mapped[int]): number of candidates in the last week
+        id (Mapped[int]): database record ID
+        message_id (Mapped[int]): Telegram message ID
+        source (Mapped[RawMessage]): link to the original message
+        vacancies_in_30d (Mapped[int]): number of job vacancies in the last 30 days
+        candidates_online (Mapped[int]): number of candidates online
+        min_salary (Mapped[int]): minimum salary
+        max_salary (Mapped[int]): maximum salary
+        responses_to_vacancies (Mapped[int]): number of responses per vacancy
+        vacancies_per_week (Mapped[int]): number of job vacancies in the last week
+        candidates_per_week (Mapped[int]): number of candidates in the last week
     """
     __tablename__ = TableNames.statistic.value  # Table name in the database / Имя таблицы в базе данных
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
@@ -423,80 +328,19 @@ class Statistic(Base):  # pylint: disable=too-few-public-methods
                                                 index=True, unique=True)
     raw_message: Mapped['RawMessage'] = relationship(back_populates='statistic')
 
-    # def __init__(self, **kw: Any):
-    #     """
-    #     Initialization of the StatisticMessage object. Parsing message text with statistics
-    #     Инициализация объекта StatisticMessage. Парсинг текста сообщения со статистикой
-    #     """
-    #     super().__init__(**kw)
-    #     statistic_signs = config.message_configs.statistics.text_parsing_signs
-    #     # Extracting numerical values from the Telegram message text
-    #     # Извлечение числовых значений из текста сообщения Telegram
-    #     self._set_numeric_attr('vacancies_in_30d', statistic_signs["vacancies_in_30d"])
-    #     self._set_numeric_attr('candidates_online', statistic_signs["candidates_online"])
-    #     self._set_numeric_attr('responses_to_vacancies', statistic_signs["responses_to_vacancies"])
-    #     self._set_numeric_attr('vacancies_per_week', statistic_signs["vacancies_per_week"])
-    #     self._set_numeric_attr('candidates_per_week', statistic_signs["candidates_per_week"])
-    #     # Extracting salary information from the Telegram message text
-    #     # Извлечение информации о зарплате из текста сообщения Telegram
-    #     self._set_salary(statistic_signs["salary"])
-    #     for key, value in vars(self).items():
-    #         if value == "":
-    #             setattr(self, key, None)
-    #     # Validating the parsing results of all fields and setting the statistics parsing status
-    #     # Проверка результатов парсинга всех полей и установка статуса парсинга статистики
-    #     self._set_parsing_status()
-    #
-    # def _set_numeric_attr(self, field_name: str, patterns: list):
-    #     """
-    #     Extracting numerical values from the Telegram message text
-    #     Извлечение числового значения из текста сообщения Telegram
-    #     """
-    #     if getattr(self, field_name) is not None:
-    #         return
-    #     pattern = f"(?:({'|'.join(patterns)}):? +)({config.re_patterns.numeric})"
-    #     match = re.search(pattern, self.raw_message.text)
-    #     if match and len(match.groups()) >= 2:
-    #         setattr(self, field_name, str_to_numeric(match.group(2)))
-    #
-    # def _set_salary(self, patterns: list):
-    #     """
-    #     Extracting salary information from the Telegram message text
-    #     Извлечение информации о зарплате из текста сообщения Telegram
-    #     """
-    #     pattern = f"(?:({'|'.join(patterns)}):? +){config.re_patterns.salary_range}"
-    #     match = re.search(pattern, self.raw_message.text)
-    #     if match and len(match.groups()) >= 3:
-    #         self.min_salary = cast(int, str_to_numeric(match.group(2)))
-    #         self.max_salary = cast(int, str_to_numeric(match.group(3)))
-    #
-    # def _set_parsing_status(self):
-    #     """
-    #     Validating the parsing results of all fields and setting the statistics parsing status
-    #     Проверка результатов парсинга всех полей и установка статуса парсинга статистики
-    #     """
-    #     counted_fields = [self.vacancies_in_30d, self.candidates_online, self.min_salary, self.max_salary,
-    #                       self.responses_to_vacancies, self.vacancies_per_week, self.candidates_per_week]
-    #     none_count = sum(1 for item in counted_fields if item is None)
-    #     if none_count:
-    #         self.parsing_status = f'{len(counted_fields) - none_count} / {len(counted_fields)}'
-    #     else:
-    #         self.parsing_status = 'OK'
-
 
 class Service(Base):  # pylint: disable=too-few-public-methods
     """
     A model class for service messages
-
     Класс-модель для служебных сообщений
-
     Attributes:
-    id (Mapped[int]): database record ID
-    message_id (Mapped[int]): Telegram message ID
-    source (Mapped[RawMessage]): link to the original message
+        id (Mapped[int]): database record ID
+        message_id (Mapped[int]): Telegram message ID
+        source (Mapped[RawMessage]): link to the original message
     """
     __tablename__ = TableNames.service.value  # Table name in the database / Имя таблицы в базе данных
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     # Relationships to 'RawMessage' table
     raw_message_id: Mapped[int] = mapped_column(Integer,
                                                 ForeignKey(f'{TableNames.raw_message.value}.id', ondelete='CASCADE'),
@@ -512,6 +356,7 @@ class VacancyWeb(Base):
     __tablename__ = TableNames.vacancy_web.value  # Table name in the database / Имя таблицы в базе данных
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     url: Mapped[str] = mapped_column(String, nullable=False)
+    redirect_url: Mapped[str] = mapped_column(String, nullable=True)
     raw_html: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     last_check: Mapped[Optional[datetime]]
     status_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
@@ -519,7 +364,7 @@ class VacancyWeb(Base):
     parsing_error: Mapped[str] = mapped_column(String, nullable=True)
     # Relationships to 'vacancies' table
     vacancy_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.vacancy.value}.id', ondelete='CASCADE'),
-                                            nullable=True)
+                                            nullable=True, index=True)
     vacancy: Mapped['Vacancy'] = relationship(back_populates='vacancy_web')
 
 
@@ -576,6 +421,7 @@ class DatabaseHandler:
         if filter_fields and existing:
             # Updating an existing record / Обновляем существующую запись
             for key, value in update_fields.items():
+                old_value = getattr(existing, key)
                 setattr(existing, key, value)
             added = False
         else:
@@ -595,7 +441,11 @@ class DatabaseHandler:
         @event.listens_for(self.engine, "connect")
         def set_sqlite_pragma(dbapi_conn, _):  # _ используется вместо необязательного параметра connection_record
             cursor = dbapi_conn.cursor()
-            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.execute("PRAGMA foreign_keys=ON")  # Enabling foreign key constraints
+            cursor.execute("PRAGMA journal_mode=WAL")  # Write-Ahead Logging
+            cursor.execute("PRAGMA synchronous=NORMAL")  # Быстрее записи
+            cursor.execute("PRAGMA cache_size=-64000")  # 64MB кеша
+            cursor.execute("PRAGMA temp_store=MEMORY")  # Временные данные в RAM
             cursor.close()
 
     def __init__(self):

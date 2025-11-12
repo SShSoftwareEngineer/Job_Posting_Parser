@@ -14,7 +14,7 @@ config: an object of the Config class containing the configuration read from a J
 
 import json
 import tomllib
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, Field
 from configs.config import GlobalConst, TableNames
 
 with open('config.toml', 'rb') as f:
@@ -27,6 +27,13 @@ class TgMessagesSigns(BaseModel):
     tg_service: list[str]
 
 
+class TgVacancyTextSigns(BaseModel):
+    position_company: list[str]
+    location_experience: list[str]
+    subscription: list[str]
+    splitter_pattern: list[str]
+
+
 class TgStatisticTextSigns(BaseModel):
     vacancies_in_30d: list[str]
     candidates_online: list[str]
@@ -36,18 +43,20 @@ class TgStatisticTextSigns(BaseModel):
     candidates_per_week: list[str]
 
 
-class TgVacancyTextSigns(BaseModel):
-    position_company: list[str]
-    location_experience: list[str]
-    subscription: list[str]
-    splitter_pattern: list[str]
-
-
 class RegexPatterns(BaseModel):
     url: str
     numeric: str
     salary: str
     salary_range: str
+
+
+class Selector(BaseModel):
+    tag: str
+    class_: str = Field(alias='class')
+
+
+class EmailMessagesSigns(BaseModel):
+    email_messages_signs: list[Selector] = Field(alias='email_messages_signs')
 
 
 tg_messages_signs = None
@@ -77,8 +86,28 @@ except ValidationError as err:
 regex_patterns.salary = regex_patterns.salary.replace('{numeric_pattern}', regex_patterns.numeric)
 regex_patterns.salary_range = regex_patterns.salary_range.replace('{numeric_pattern}', regex_patterns.numeric)
 
+email_messages_signs = None
+try:
+    email_messages_signs = EmailMessagesSigns(**config_toml.get('email_messages_signs', {}))
+except ValidationError as err:
+    print(f'Error in [email_messages_signs] section: {err}')
+
+print(email_messages_signs)
+
+print(config_toml.get('email_messages_signs', []))
+
+# Если в TOML [[email_messages_signs]]
+selectors = [Selector(**item) for item in config_toml.get('email_messages_signs', [])]
+
+email_vacancy_selectors = None
+try:
+    raw_data = config_toml.get('email_messages_signs', [])
+    email_vacancy_selectors = [Selector(**item) for item in raw_data]
+except ValidationError as err:
+    print(f'Error: {err}')
 
 pass
+
 
 # -----------------------------------------------------------------------------------------------------------
 

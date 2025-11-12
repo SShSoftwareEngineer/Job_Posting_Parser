@@ -4,6 +4,7 @@ from imapclient import IMAPClient
 from email import message_from_bytes, policy
 from email.message import EmailMessage
 
+from config_handler import email_messages_signs
 from configs.config import MessageTypes
 
 
@@ -53,12 +54,14 @@ def get_email_list(imap_client: IMAPClient, folder_name: str, last_date: str) ->
     return emails_list
 
 
-def email_detect_message_type(param) -> MessageTypes:
+def email_detect_message_type(message_html: str) -> MessageTypes:
     """
     Определяет тип Email сообщения по его HTML или тексту
     """
+
     result = MessageTypes.EMAIL_UNKNOWN
-    email_content = ''
+    # if email_messages_signs.email_vacancy
+
     return result
 
 

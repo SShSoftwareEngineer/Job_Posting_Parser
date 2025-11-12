@@ -4,6 +4,7 @@ from email import message_from_bytes, policy
 from email.message import EmailMessage
 from typing import cast
 
+from bs4 import BeautifulSoup
 from telethon.tl.types import Message
 
 from config_handler import tg_vacancy_text_signs, regex_patterns, tg_statistic_text_signs
@@ -86,13 +87,16 @@ class TgVacancyTextParser(MessageParser):
         parsed_vacancies_data = []
         # Обработка каждой части текста сообщения Telegram с вакансией
         for text_part in text_parts:
-            text_part=text_part.replace('\n\n', '\n').strip()
-            parsed_data = {'text': text_part}
+            text_part = text_part.replace('\n\n', '\n').strip()
+            parsed_data={}
             # Извлечение строк с необходимой информацией / Extracting lines with the necessary information
             strings = text_part.split('\n')
             str_1 = re.sub(r'[*_`]+', '', strings[0]).replace('  ', ' ')
             str_2 = re.sub(r'[*_`]+', '', strings[1]).replace('  ', ' ')
             str_last = re.sub(r'[*_`]+', '', strings[-1]).replace('  ', ' ')
+            # Extracting the vacancy description from the Telegram message text
+            # Извлечение описания вакансии из сообщения Telegram
+            parsed_data['description_msg'] = '\n'.join(strings[2:-2] if len(strings) > 4 else [])
             # Extracting the position and company name from the Telegram message text
             # Извлечение позиции, названия компании из текста сообщения Telegram
             matching = re.split(f"{'|'.join(tg_vacancy_text_signs.position_company)}", str_1)
@@ -134,8 +138,11 @@ class TgVacancyTextParser(MessageParser):
             if matching:
                 parsed_data['subscription'] = matching.strip('\"\' *_`')
             # Подсчет успешно распарсенных полей / Counting successfully parsed fields
-            parsed_fields = ['position_msg', 'location', 'experience_msg', 'min_salary', 'max_salary', 'company', 'url',
-                             'subscription']
+            parsed_fields = ['position_msg', 'job_desc_msg', 'location', 'experience_msg', 'min_salary', 'max_salary', 'company', 'url',
+                             'subscription_msg']
+            if text_part.find('$') == -1:
+                parsed_fields.remove('min_salary')
+                parsed_fields.remove('max_salary')
             unsuccessfully_parsed_fields = [field for field in parsed_fields if parsed_data.get(field) is None]
             if unsuccessfully_parsed_fields:
                 parsed_data['text_parsing_error'] = (f'{len(unsuccessfully_parsed_fields)} | {len(parsed_fields)},'
@@ -255,6 +262,25 @@ class EmailRawMessageParser(MessageParser):
             parsed_data['parsing_error'] = (f'{len(unsuccessfully_parsed_fields)} | {len(parsed_fields)},'
                                             f' {', '.join(unsuccessfully_parsed_fields)}')
         return parsed_data
+
+class EmailVacancyMessageParser(MessageParser):
+    """
+    Класс для парсинга сообщений Email с вакансиями, возвращает словарь с результатами парсинга
+    """
+
+    def parse(self, html: str) -> dict:
+        """
+        Функция для парсинга сообщений Email с вакансиями, возвращает словарь с результатами парсинга
+        """
+
+        # Create a BeautifulSoup object for parsing the HTML page with the job posting text
+        # Создаем объект BeautifulSoup для парсинга HTML-страницы с текстом вакансии
+        soup = BeautifulSoup(html, 'lxml')
+
+        parsed_data={}
+
+        return parsed_data
+
 
 
 if __name__ == '__main__':
