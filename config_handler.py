@@ -27,11 +27,25 @@ class TgMessagesSigns(BaseModel):
     tg_service: list[str]
 
 
+tg_messages_signs = None
+try:
+    tg_messages_signs = TgMessagesSigns(**config_toml.get('tg_messages_signs', {}))
+except ValidationError as err:
+    print(f'Error in [tg_messages_signs] section: {err}')
+
+
 class TgVacancyTextSigns(BaseModel):
     position_company: list[str]
     location_experience: list[str]
     subscription: list[str]
     splitter_pattern: list[str]
+
+
+tg_vacancy_text_signs = None
+try:
+    tg_vacancy_text_signs = TgVacancyTextSigns(**config_toml.get('tg_vacancy_text_signs', {}))
+except ValidationError as err:
+    print(f'Error in [tg_vacancy_text_signs] section: {err}')
 
 
 class TgStatisticTextSigns(BaseModel):
@@ -43,39 +57,19 @@ class TgStatisticTextSigns(BaseModel):
     candidates_per_week: list[str]
 
 
-class RegexPatterns(BaseModel):
-    url: str
-    numeric: str
-    salary: str
-    salary_range: str
-
-
-class Selector(BaseModel):
-    tag: str
-    class_: str = Field(alias='class')
-
-
-class EmailMessagesSigns(BaseModel):
-    email_messages_signs: list[Selector] = Field(alias='email_messages_signs')
-
-
-tg_messages_signs = None
-try:
-    tg_messages_signs = TgMessagesSigns(**config_toml.get('tg_messages_signs', {}))
-except ValidationError as err:
-    print(f'Error in [tg_messages_signs] section: {err}')
-
 tg_statistic_text_signs = None
 try:
     tg_statistic_text_signs = TgStatisticTextSigns(**config_toml.get('tg_statistic_text_signs', {}))
 except ValidationError as err:
     print(f'Error in [tg_statistic_text_signs] section: {err}')
 
-tg_vacancy_text_signs = None
-try:
-    tg_vacancy_text_signs = TgVacancyTextSigns(**config_toml.get('tg_vacancy_text_signs', {}))
-except ValidationError as err:
-    print(f'Error in [tg_vacancy_text_signs] section: {err}')
+
+class RegexPatterns(BaseModel):
+    url: str
+    numeric: str
+    salary: str
+    salary_range: str
+
 
 regex_patterns = None
 try:
@@ -86,25 +80,22 @@ except ValidationError as err:
 regex_patterns.salary = regex_patterns.salary.replace('{numeric_pattern}', regex_patterns.numeric)
 regex_patterns.salary_range = regex_patterns.salary_range.replace('{numeric_pattern}', regex_patterns.numeric)
 
+
+class Selector(BaseModel):
+    tag: str
+    attr_name: str
+    attr_value: str
+
+
+class EmailMessagesSigns(BaseModel):
+    vacancy: list[Selector]
+
+
 email_messages_signs = None
 try:
     email_messages_signs = EmailMessagesSigns(**config_toml.get('email_messages_signs', {}))
 except ValidationError as err:
     print(f'Error in [email_messages_signs] section: {err}')
-
-print(email_messages_signs)
-
-print(config_toml.get('email_messages_signs', []))
-
-# Если в TOML [[email_messages_signs]]
-selectors = [Selector(**item) for item in config_toml.get('email_messages_signs', [])]
-
-email_vacancy_selectors = None
-try:
-    raw_data = config_toml.get('email_messages_signs', [])
-    email_vacancy_selectors = [Selector(**item) for item in raw_data]
-except ValidationError as err:
-    print(f'Error: {err}')
 
 pass
 

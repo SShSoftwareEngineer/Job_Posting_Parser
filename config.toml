@@ -57,7 +57,7 @@ salary_range = "\\$?{numeric_pattern}-{numeric_pattern}"
 
 
 # Сигнатуры для распознавания типов Email сообщений, class EmailMessagesSigns
+[email_messages_signs]
 # Сигнатуры для типа 'vacancy'
-[[email_messages_signs.email_vacancy]]
-tag = "div"
-class = "card"
+vacancy = [{ tag = "div", attr_name = "class", attr_value = "card" },
+    { tag = "td", attr_name = "style", attr_value = "padding-bottom:24px;box-sizing:border-box;" }]

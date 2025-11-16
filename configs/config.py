@@ -16,8 +16,9 @@ class MessageSources(Enum):
     """
     Constants for different sources of messages.
     """
-    EMAIL = 1
-    TELEGRAM = 2
+    WEB = 1
+    EMAIL = 2
+    TELEGRAM = 3
 
 
 class MessageTypes(Enum):
@@ -100,12 +101,15 @@ class TableNames(Enum):
     Имена таблиц в базе данных для разных типов сообщений.
     """
     raw_message = 'raw_messages'
-    vacancy = 'vacancies'
+    vacancy = 'vacancy'
+    vacancy_sources = 'vacancy_sources'
     statistic = 'statistic'
     service = 'service'
     message_source = 'message_sources'
     message_type = 'message_types'
-    vacancy_web = 'vacancies_web'
+    vacancy_web = 'vacancy_web'
+    # View for vacancies
+    vacancies = 'vacancies'
 
     @staticmethod
     def get_table_names() -> list[str]:

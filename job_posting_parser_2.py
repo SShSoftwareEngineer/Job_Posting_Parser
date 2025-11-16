@@ -108,7 +108,7 @@ def processing_email_messages(imap_client: IMAPClient, folder_name: str, message
     if last_date is None:
         last_date = datetime(2020, 1, 1).strftime('%d-%b-%Y')
 
-    last_date = datetime(2025, 1, 1).strftime('%d-%b-%Y')
+    last_date = datetime(2023, 1, 1).strftime('%d-%b-%Y')
 
     # Retrieving new emails  / Получаем новые сообщения электронной почты
     email_messages = get_email_list(imap_client=imap_client, folder_name=folder_name, last_date=last_date)
@@ -128,25 +128,25 @@ def processing_email_messages(imap_client: IMAPClient, folder_name: str, message
         # Обновляем счетчик типов сообщений / Updating the message types counter
         messages_counter.update({f'EMAIL_RAW {'added' if added else 'updated'}': 1})
         # Processing the message based on its type / Обрабатываем сообщения в зависимости от их типа
-        match db_raw_message.message_type.name:
-            case MessageTypes.EMAIL_VACANCY.name:
-                # Parsing the vacancy message / Парсим сообщение с вакансией
-                parsing_data = TgVacancyTextParser().parse(text=db_raw_message.text)
-                # Создаем объект объявления о вакансии на сайте / Creating a job vacancy object on the site
-                db_vacancy_web, added = db_handler.upsert_record(VacancyWeb, {'url': parsing_data['url']}, {})
-                del parsing_data['url']
-                # Обновляем счетчик типов сообщений / Updating the message types counter
-                messages_counter.update({f'TG_URL {'added' if added else 'updated'}': 1})
-                # Getting the hash value of the vacancy data to check for duplicates
-                # Получаем хэш параметров вакансии для проверки на дубликаты
-                json_str = json.dumps(parsing_data, sort_keys=True, ensure_ascii=False)
-                hash_value = hashlib.md5(json_str.encode('utf-8')).hexdigest()
-                # Saving the vacancy message to the database / Сохраняем сообщение с вакансией в базу данных
-                db_vacancy, added = db_handler.upsert_record(Vacancy, {'text_data_hash': hash_value}, parsing_data)
-                db_vacancy.vacancy_web.append(db_vacancy_web)
-                db_raw_message.vacancy.append(db_vacancy)
-                # Обновляем счетчик типов сообщений / Updating the message types counter
-                messages_counter.update({f'{db_raw_message.message_type.name} {'added' if added else 'updated'}': 1})
+        # match db_raw_message.message_type.name:
+        #     case MessageTypes.EMAIL_VACANCY.name:
+        #         # Parsing the vacancy message / Парсим сообщение с вакансией
+        #         parsing_data = EmailVacancyTextParser().parse(text=db_raw_message.text)
+        #         # Создаем объект объявления о вакансии на сайте / Creating a job vacancy object on the site
+        #         db_vacancy_web, added = db_handler.upsert_record(VacancyWeb, {'url': parsing_data['url']}, {})
+        #         del parsing_data['url']
+        #         # Обновляем счетчик типов сообщений / Updating the message types counter
+        #         messages_counter.update({f'TG_URL {'added' if added else 'updated'}': 1})
+        #         # Getting the hash value of the vacancy data to check for duplicates
+        #         # Получаем хэш параметров вакансии для проверки на дубликаты
+        #         json_str = json.dumps(parsing_data, sort_keys=True, ensure_ascii=False)
+        #         hash_value = hashlib.md5(json_str.encode('utf-8')).hexdigest()
+        #         # Saving the vacancy message to the database / Сохраняем сообщение с вакансией в базу данных
+        #         db_vacancy, added = db_handler.upsert_record(Vacancy, {'text_data_hash': hash_value}, parsing_data)
+        #         db_vacancy.vacancy_web.append(db_vacancy_web)
+        #         db_raw_message.vacancy.append(db_vacancy)
+        #         # Обновляем счетчик типов сообщений / Updating the message types counter
+        #         messages_counter.update({f'{db_raw_message.message_type.name} {'added' if added else 'updated'}': 1})
 
     return messages_counter
 

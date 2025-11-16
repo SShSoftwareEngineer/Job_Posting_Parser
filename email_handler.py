@@ -1,11 +1,5 @@
 from email.header import decode_header
-from typing import cast
 from imapclient import IMAPClient
-from email import message_from_bytes, policy
-from email.message import EmailMessage
-
-from config_handler import email_messages_signs
-from configs.config import MessageTypes
 
 
 def init_imap_client(host: str, port: int, timeout: float, username: str, password: str) -> IMAPClient:
@@ -54,15 +48,6 @@ def get_email_list(imap_client: IMAPClient, folder_name: str, last_date: str) ->
     return emails_list
 
 
-def email_detect_message_type(message_html: str) -> MessageTypes:
-    """
-    Определяет тип Email сообщения по его HTML или тексту
-    """
-
-    result = MessageTypes.EMAIL_UNKNOWN
-    # if email_messages_signs.email_vacancy
-
-    return result
 
 
 # Creating a client for working with IMAP Email / Создание клиента для работы с IMAP Email

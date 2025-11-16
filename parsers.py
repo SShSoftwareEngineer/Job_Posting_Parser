@@ -7,10 +7,10 @@ from typing import cast
 from bs4 import BeautifulSoup
 from telethon.tl.types import Message
 
-from config_handler import tg_vacancy_text_signs, regex_patterns, tg_statistic_text_signs
-from configs.config import MessageSources
-from email_handler import decode_email_field, email_detect_message_type
-from telegram_handler import tg_detect_message_type
+from config_handler import tg_vacancy_text_signs, regex_patterns, tg_statistic_text_signs, tg_messages_signs, \
+    email_messages_signs
+from configs.config import MessageSources, MessageTypes
+from email_handler import decode_email_field
 from utils import str_to_numeric, parse_date_string
 
 
@@ -87,8 +87,8 @@ class TgVacancyTextParser(MessageParser):
         parsed_vacancies_data = []
         # Обработка каждой части текста сообщения Telegram с вакансией
         for text_part in text_parts:
+            parsed_data = {}
             text_part = text_part.replace('\n\n', '\n').strip()
-            parsed_data={}
             # Извлечение строк с необходимой информацией / Extracting lines with the necessary information
             strings = text_part.split('\n')
             str_1 = re.sub(r'[*_`]+', '', strings[0]).replace('  ', ' ')
@@ -96,37 +96,37 @@ class TgVacancyTextParser(MessageParser):
             str_last = re.sub(r'[*_`]+', '', strings[-1]).replace('  ', ' ')
             # Extracting the vacancy description from the Telegram message text
             # Извлечение описания вакансии из сообщения Telegram
-            parsed_data['description_msg'] = '\n'.join(strings[2:-2] if len(strings) > 4 else [])
+            parsed_data['job_desc'] = '\n'.join(strings[2:-2] if len(strings) > 4 else [])
             # Extracting the position and company name from the Telegram message text
             # Извлечение позиции, названия компании из текста сообщения Telegram
             matching = re.split(f"{'|'.join(tg_vacancy_text_signs.position_company)}", str_1)
             if matching:
-                parsed_data['position_msg'] = matching[0]
+                parsed_data['position'] = matching[0]
                 if len(matching) > 1:
                     parsed_data['company'] = matching[1]
             else:
-                parsed_data['position_msg'] = str_1
+                parsed_data['position'] = str_1
             # Extracting the company location and experience requirements from the Telegram message text
             # Извлечение локации компании, опыта работы из текста сообщения Telegram
             matching = re.search(
                 f'(.+), {regex_patterns.numeric}? ?({"|".join(tg_vacancy_text_signs.location_experience)})', str_2)
             if matching:
                 parsed_data['location'] = matching.group(1)
-                parsed_data['experience_msg'] = cast(int | None, str_to_numeric(matching.group(2)))
+                parsed_data['experience'] = cast(int | None, str_to_numeric(matching.group(2)))
                 if matching.group(2) is None and matching.group(3) is not None:
-                    parsed_data['experience_msg'] = 0
+                    parsed_data['experience'] = 0
             # Extracting salary information from the Telegram message text
             # Извлечение информации о зарплате из текста сообщения Telegram
             matching = re.search(fr'{regex_patterns.salary_range}\Z', str_2)
             if matching:
                 if len(matching.groups()) == 2:
-                    parsed_data['min_salary'] = cast(int | None, str_to_numeric(matching.groups()[-2]))
-                    parsed_data['max_salary'] = cast(int | None, str_to_numeric(matching.groups()[-1]))
+                    parsed_data['salary_from'] = cast(int | None, str_to_numeric(matching.groups()[-2]))
+                    parsed_data['salary_to'] = cast(int | None, str_to_numeric(matching.groups()[-1]))
             else:
                 matching = re.search(fr'{regex_patterns.salary}\Z', str_2)
                 if matching:
-                    parsed_data['min_salary'] = cast(int | None, str_to_numeric(matching.groups()[-1]))
-                    parsed_data['max_salary'] = parsed_data['min_salary']
+                    parsed_data['salary_from'] = cast(int | None, str_to_numeric(matching.groups()[-1]))
+                    parsed_data['salary_to'] = parsed_data['salary_to']
             # Extracting full vacancy text URL on the website from the Telegram message text
             # Извлечение URL вакансии на сайте из текста сообщения Telegram
             matching = re.search(regex_patterns.url, text_part)
@@ -138,11 +138,11 @@ class TgVacancyTextParser(MessageParser):
             if matching:
                 parsed_data['subscription'] = matching.strip('\"\' *_`')
             # Подсчет успешно распарсенных полей / Counting successfully parsed fields
-            parsed_fields = ['position_msg', 'job_desc_msg', 'location', 'experience_msg', 'min_salary', 'max_salary', 'company', 'url',
-                             'subscription_msg']
+            parsed_fields = ['position', 'job_desc', 'location', 'experience', 'salary_from', 'salary_to',
+                             'company', 'url', 'subscription']
             if text_part.find('$') == -1:
-                parsed_fields.remove('min_salary')
-                parsed_fields.remove('max_salary')
+                parsed_fields.remove('salary_from')
+                parsed_fields.remove('salary_to')
             unsuccessfully_parsed_fields = [field for field in parsed_fields if parsed_data.get(field) is None]
             if unsuccessfully_parsed_fields:
                 parsed_data['text_parsing_error'] = (f'{len(unsuccessfully_parsed_fields)} | {len(parsed_fields)},'
@@ -263,6 +263,7 @@ class EmailRawMessageParser(MessageParser):
                                             f' {', '.join(unsuccessfully_parsed_fields)}')
         return parsed_data
 
+
 class EmailVacancyMessageParser(MessageParser):
     """
     Класс для парсинга сообщений Email с вакансиями, возвращает словарь с результатами парсинга
@@ -277,10 +278,35 @@ class EmailVacancyMessageParser(MessageParser):
         # Создаем объект BeautifulSoup для парсинга HTML-страницы с текстом вакансии
         soup = BeautifulSoup(html, 'lxml')
 
-        parsed_data={}
+        parsed_data = {}
 
         return parsed_data
 
+
+def tg_detect_message_type(msg_text: str) -> MessageTypes:
+    """
+    Определяет тип сообщения Telegram по его тексту
+    """
+    result = MessageTypes.TG_UNKNOWN
+    for config_type_name in tg_messages_signs.model_fields.keys():
+        matching = re.search(f"{'|'.join(getattr(tg_messages_signs, config_type_name))}", msg_text)
+        if matching:
+            result = MessageTypes.get_message_type_by_config_name(config_type_name)
+    if all([result == MessageTypes.TG_UNKNOWN, len(msg_text) < 10, msg_text.find(' ') == -1]):
+        result = MessageTypes.TG_SERVICE
+    return result
+
+
+def email_detect_message_type(email_html: str) -> MessageTypes:
+    """
+    Определяет тип Email сообщения по его HTML или тексту
+    """
+    result = MessageTypes.EMAIL_UNKNOWN
+    soup = BeautifulSoup(email_html, 'lxml')
+    for vacancy_signs in email_messages_signs.vacancy:
+        if soup.find_all(vacancy_signs.tag, attrs={vacancy_signs.attr_name: vacancy_signs.attr_value}):
+            result = MessageTypes.EMAIL_VACANCY
+    return result
 
 
 if __name__ == '__main__':
