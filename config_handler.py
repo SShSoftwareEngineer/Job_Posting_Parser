@@ -14,7 +14,7 @@ config: an object of the Config class containing the configuration read from a J
 
 import json
 import tomllib
-from pydantic import BaseModel, ValidationError, Field
+from pydantic import BaseModel, ValidationError
 from configs.config import GlobalConst, TableNames
 
 with open('config.toml', 'rb') as f:
@@ -84,7 +84,7 @@ regex_patterns.salary_range = regex_patterns.salary_range.replace('{numeric_patt
 class Selector(BaseModel):
     tag: str
     attr_name: str
-    attr_value: str
+    attr_value: list[str]
 
 
 class EmailMessagesSigns(BaseModel):
@@ -97,12 +97,32 @@ try:
 except ValidationError as err:
     print(f'Error in [email_messages_signs] section: {err}')
 
+
+class EmailVacancyHTMLSigns(BaseModel):
+    position_company: list[str]
+    location_experience: list[str]
+    subscription: list[str]
+    position_url_selector: Selector
+    company_selector: Selector
+    location_experience_salary_selector: Selector
+    salary_selector: Selector
+    job_desc_selector: Selector
+    details_link: Selector
+    splitters: list[Selector]
+
+
+email_vacancy_html_signs = None
+try:
+    email_vacancy_html_signs = EmailVacancyHTMLSigns(**config_toml.get('email_vacancy_html_signs', {}))
+except ValidationError as err:
+    print(f'Error in [email_vacancy_html_signs] section: {err}')
+
 pass
 
 
 # -----------------------------------------------------------------------------------------------------------
 
-def resolve_patterns(self):
+def resolve_patterns():
     """
     Replaces placeholders in the configuration with real values
     Заменяет placeholders в конфигурации, подставляя реальные значения
@@ -176,7 +196,7 @@ class Config(BaseModel):
         """
 
         sql = f"SELECT {', '.join(self.export_to_excel[table_name].columns.keys())} FROM {table_name}"
-        if table_name != TableNames.raw_message:
+        if table_name != TableNames.RAW_MESSAGES:
             sql += f" JOIN source ON source.message_id = {table_name}.message_id"
         for item in TableNames:
             sql = sql.replace(item.name, item.value)

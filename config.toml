@@ -59,5 +59,42 @@ salary_range = "\\$?{numeric_pattern}-{numeric_pattern}"
 # Сигнатуры для распознавания типов Email сообщений, class EmailMessagesSigns
 [email_messages_signs]
 # Сигнатуры для типа 'vacancy'
-vacancy = [{ tag = "div", attr_name = "class", attr_value = "card" },
-    { tag = "td", attr_name = "style", attr_value = "padding-bottom:24px;box-sizing:border-box;" }]
+[[email_messages_signs.vacancy]]
+tag = "div"
+attr_name = "class"
+attr_value = ["card"]
+# Сигнатуры для типа 'vacancy'
+[[email_messages_signs.vacancy]]
+tag = "td"
+attr_name = "style"
+attr_value = ["padding-bottom:24px", "box-sizing:border-box"]
+
+
+
+# Сигнатуры для определения параметров вакансии из HTML Email вакансий, class EmailVacancyHTMLSigns
+[email_vacancy_html_signs]
+# Удаление лишних подстрок из позиции и компании
+position_company = [" в ", " at "]
+# Удаление лишних подстрок из локации и опыта соискателя
+location_experience = ["год опыта", "года опыта", "лет опыта", "роки досвіду", "років досвіду",
+    "year of experience", "years of experience",
+    "Без опыта", "без опыта", "No experience"]
+# Удаление лишних подстрок из названия подписки на рассылку
+subscription = ["Subscription:", "Подписка:", "Підписка:"]
+# Селектор позиции и URL
+position_url_selector = { tag = "a", attr_name = "style", attr_value = ["font-weight:bold", "font-size:18px"] }
+# Селектор названия компании
+company_selector = { tag = "span", attr_name = "class", attr_value = ["djinni-whois-expanded"] }
+# Селектор локации, опыта, зарплаты
+location_experience_salary_selector = { tag = "p", attr_name = "class", attr_value = ["djinni-whois-expanded"] }
+# Селектор зарплаты
+salary_selector = { tag = "span", attr_name = "style", attr_value = ["color:#4cae4c"] }
+# Селектор описания вакансии
+job_desc_selector = { tag = "p", attr_name = "style", attr_value = ["margin:5px 0", "color:#333"] }
+# Селектор лишнего текста в описании вакансии
+details_link = { tag = "a", attr_name = "text", attr_value = ["Подробнее"] }
+# Разделитель по селекторам между несколькикми вакансиями в одном сообщении
+[[email_vacancy_html_signs.splitters]]
+tag = "td"
+attr_name = "style"
+attr_value = ["padding-bottom:24px"]

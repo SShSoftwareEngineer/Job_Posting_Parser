@@ -18,10 +18,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, Type, TypeVar, List
 import pandas as pd
-from sqlalchemy import create_engine, Integer, ForeignKey, Text, String, event, DDL
+from sqlalchemy import create_engine, Integer, ForeignKey, Text, String, event, Engine, Table, Column
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, Session
 from config_handler import config
-from configs.config import GlobalConst, TableNames, MessageSources, MessageTypes
+from configs.config import GlobalConst, TableNames, MessageSources, MessageTypes, VacancyAttrs
 
 # A dictionary containing descriptions of HTTP request errors / Описание ошибок HTTP-запросов
 HTTP_ERRORS = {
@@ -36,6 +36,17 @@ class Base(DeclarativeBase):  # pylint: disable=too-few-public-methods
     """ A declarative class for creating tables in the database """
 
 
+# Table implementing a many-to-many relationship between the Vacancy and VacancyData tables
+# Таблица, реализующая отношение «многие-ко-многим» к таблицам «Vacancy» и «VacancyData»
+vacancy_vacancy_data_links = Table(
+    TableNames.VACANCY_DATA_VACANCIES_LINKS.value, Base.metadata,
+    Column('vacancy_id', String,
+           ForeignKey(f'{TableNames.VACANCIES.value}.id'), primary_key=True, index=True),
+    Column('vacancy_data_id', Integer,
+           ForeignKey(f'{TableNames.VACANCY_DATA.value}.id'), primary_key=True, index=True)
+)
+
+
 class RawMessage(Base):  # pylint: disable=too-few-public-methods
     """
     A model class for original Telegram messages
@@ -48,7 +59,7 @@ class RawMessage(Base):  # pylint: disable=too-few-public-methods
         text (Mapped[str]): message text
     """
 
-    __tablename__ = TableNames.raw_message.value  # Table name in the database / Имя таблицы в базе данных
+    __tablename__ = TableNames.RAW_MESSAGES.value  # Table name in the database / Имя таблицы в базе данных
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     date: Mapped[datetime]
     message_id: Mapped[Optional[int]] = mapped_column(Integer, unique=True, nullable=True)
@@ -56,24 +67,40 @@ class RawMessage(Base):  # pylint: disable=too-few-public-methods
     text: Mapped[str] = mapped_column(Text, nullable=True)
     html: Mapped[str] = mapped_column(Text, nullable=True)
     parsing_error: Mapped[str] = mapped_column(String, nullable=True)
-    # Relationships to 'vacancy' table
+    # Relationships to 'Vacancy' table
     vacancy: Mapped[List['Vacancy']] = relationship(back_populates='raw_message', cascade='all, delete-orphan')
-    # Relationships to 'statistics' table
+    # Relationships to 'Statistic' table
     statistic: Mapped['Statistic'] = relationship(back_populates='raw_message', uselist=False,
                                                   cascade='all, delete-orphan')
-    # Relationships to 'service' table
+    # Relationships to 'Service' table
     service: Mapped['Service'] = relationship(back_populates='raw_message', uselist=False, cascade='all, delete-orphan')
-    # Relationships to 'message_sources' table
-    message_source_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.message_source.value}.id'),
+    # Relationships to 'MessageSource' table
+    message_source_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.MESSAGE_SOURCE.value}.id'),
                                                    index=True)
     message_source: Mapped['MessageSource'] = relationship(back_populates='raw_message')
-    # Relationships to 'message_types' table
-    message_type_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.message_type.value}.id'),
+    # Relationships to 'MessageType' table
+    message_type_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.MESSAGE_TYPE.value}.id'),
                                                  index=True)
     message_type: Mapped['MessageType'] = relationship(back_populates='raw_message')
 
 
-class Vacancy(Base):  # pylint: disable=too-few-public-methods, disable=too-many-instance-attributes
+class VacancyData(Base):
+    """
+    A model class for vacancies data
+    Класс-модель для параметров вакансий
+    """
+
+    __tablename__ = TableNames.VACANCY_DATA.value  # Table name in the database / Имя таблицы в базе данных
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    attr_value: Mapped[str] = mapped_column(String, nullable=False)
+    # Relationships to 'VacancyAttribute' table
+    attr_name_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.VACANCY_ATTRS.value}.id'), index=True)
+    attr_name: Mapped['VacancyAttribute'] = relationship(back_populates='vacancy_attr')
+    # Relationships to 'Vacancy' table, many-to-many
+    vacancy: Mapped[List['Vacancy']] = relationship(secondary=vacancy_vacancy_data_links, back_populates='vacancy_data')
+
+
+class Vacancy(Base):
     """
     A model class for vacancy messages
     Класс-модель для сообщений о вакансиях
@@ -91,16 +118,9 @@ class Vacancy(Base):  # pylint: disable=too-few-public-methods, disable=too-many
         notes (Mapped[str]): notes
     """
 
-    __tablename__ = TableNames.vacancy.value  # Table name in the database / Имя таблицы в базе данных
+    __tablename__ = TableNames.VACANCIES.value  # Table name in the database / Имя таблицы в базе данных
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    domain: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    main_tech: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    tech_stack: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    lingvo: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    work_type: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    candidate_locations: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    company_type: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    offices: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    # Hash параметров как идентификатор вакансии
     data_hash: Mapped[str] = mapped_column(String, nullable=True)
     # Service parameters used for parsing debugging / Служебные параметры, используемые при отладке парсинга
     text_parsing_error: Mapped[str] = mapped_column(String, nullable=True)
@@ -109,14 +129,14 @@ class Vacancy(Base):  # pylint: disable=too-few-public-methods, disable=too-many
     notes: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     temp_card: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     # Relationships to 'RawMessage' table
-    raw_message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.raw_message.value}.id'), index=True,
+    raw_message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.RAW_MESSAGES.value}.id'), index=True,
                                                 nullable=True)
     raw_message: Mapped['RawMessage'] = relationship(back_populates='vacancy')
     # Relationships to 'VacancyWeb' table
     vacancy_web: Mapped[List['VacancyWeb']] = relationship(back_populates='vacancy', cascade='all, delete-orphan')
-    # Relationships to 'VacancySources' table
-    vacancy_sources: Mapped[List['VacancySources']] = relationship(back_populates='vacancy',
-                                                                   cascade='all, delete-orphan')
+    # Relationships to 'VacancyData' table, many-to-many
+    vacancy_data: Mapped[List['VacancyData']] = relationship(secondary=vacancy_vacancy_data_links,
+                                                             back_populates='vacancy')
 
     # def __init__(self, **kw: Any):
     #     """
@@ -275,38 +295,6 @@ class Vacancy(Base):  # pylint: disable=too-few-public-methods, disable=too-many
     #     self.parsing_status = f'{parsing_text_status} _ {parsing_html_status}'
 
 
-class VacancySources(Base):
-    """
-    A model class for job properties obtained from different sources
-    Класс-модель для свойств вакансии, полученных из разных источников
-
-    message_id (Mapped[int]): Telegram message ID
-    email_uid (Mapped[int]): Email message UID
-    """
-
-    __tablename__ = TableNames.vacancy_sources.value  # Table name in the database / Имя таблицы в базе данных
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    message_id: Mapped[int] = mapped_column(Integer, nullable=True)
-    email_uid: Mapped[int] = mapped_column(Integer, nullable=True)
-    position: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    location: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    experience: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    salary_from: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    salary_to: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    job_desc: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    company: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    subscription: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    data_hash: Mapped[str] = mapped_column(String, nullable=True)
-    # Relationships to 'Vacancy' table
-    vacancy_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.vacancy.value}.id', ondelete='CASCADE'),
-                                            nullable=True, index=True)
-    vacancy: Mapped['Vacancy'] = relationship(back_populates='vacancy_sources')
-    # Relationships to 'MessageSources' table
-    message_source_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.message_source.value}.id'),
-                                                   index=True)
-    message_source: Mapped['MessageSource'] = relationship(back_populates='vacancy_sources')
-
-
 class Statistic(Base):  # pylint: disable=too-few-public-methods
     """
     A model class for statistics messages
@@ -322,7 +310,7 @@ class Statistic(Base):  # pylint: disable=too-few-public-methods
         vacancies_per_week (Mapped[int]): number of job vacancies in the last week
         candidates_per_week (Mapped[int]): number of candidates in the last week
     """
-    __tablename__ = TableNames.statistic.value  # Table name in the database / Имя таблицы в базе данных
+    __tablename__ = TableNames.STATISTIC.value  # Table name in the database / Имя таблицы в базе данных
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     vacancies_in_30d: Mapped[int] = mapped_column(Integer, nullable=True)
     candidates_online: Mapped[int] = mapped_column(Integer, nullable=True)
@@ -334,7 +322,7 @@ class Statistic(Base):  # pylint: disable=too-few-public-methods
     parsing_error: Mapped[str] = mapped_column(String, nullable=True)
     # Relationships to 'RawMessage' table
     raw_message_id: Mapped[int] = mapped_column(Integer,
-                                                ForeignKey(f'{TableNames.raw_message.value}.id', ondelete='CASCADE'),
+                                                ForeignKey(f'{TableNames.RAW_MESSAGES.value}.id', ondelete='CASCADE'),
                                                 index=True, unique=True)
     raw_message: Mapped['RawMessage'] = relationship(back_populates='statistic')
 
@@ -348,12 +336,12 @@ class Service(Base):  # pylint: disable=too-few-public-methods
         source (Mapped[RawMessage]): link to the original message
         text (Mapped[Optional[str]]): text of message
     """
-    __tablename__ = TableNames.service.value  # Table name in the database / Имя таблицы в базе данных
+    __tablename__ = TableNames.SERVICE.value  # Table name in the database / Имя таблицы в базе данных
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     # Relationships to 'RawMessage' table
     raw_message_id: Mapped[int] = mapped_column(Integer,
-                                                ForeignKey(f'{TableNames.raw_message.value}.id', ondelete='CASCADE'),
+                                                ForeignKey(f'{TableNames.RAW_MESSAGES.value}.id', ondelete='CASCADE'),
                                                 index=True, unique=True)
     raw_message: Mapped['RawMessage'] = relationship(back_populates='service')
 
@@ -363,7 +351,7 @@ class VacancyWeb(Base):
     Class model for job vacancy URLs on the website
     Класс-модель для URL-адресов вакансий на сайте
     """
-    __tablename__ = TableNames.vacancy_web.value  # Table name in the database / Имя таблицы в базе данных
+    __tablename__ = TableNames.VACANCY_WEB.value  # Table name in the database / Имя таблицы в базе данных
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     url: Mapped[str] = mapped_column(String, nullable=False)
     redirect_url: Mapped[str] = mapped_column(String, nullable=True)
@@ -373,39 +361,57 @@ class VacancyWeb(Base):
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     parsing_error: Mapped[str] = mapped_column(String, nullable=True)
     # Relationships to 'Vacancy' table
-    vacancy_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.vacancy.value}.id', ondelete='CASCADE'),
-                                            nullable=True, index=True)
+    vacancy_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.VACANCIES.value}.id',
+                                                                ondelete='CASCADE'), nullable=True, index=True)
     vacancy: Mapped['Vacancy'] = relationship(back_populates='vacancy_web')
 
 
 class MessageSource(Base):
     """
     A model class for message sources
-    Класс-модель для источников сообщений
+    Класс-модель (справочник) для источников сообщений
     """
-    __tablename__ = TableNames.message_source.value  # Table name in the database / Имя таблицы в базе данных
+    __tablename__ = TableNames.MESSAGE_SOURCE.value  # Table name in the database / Имя таблицы в базе данных
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     # Relationships to 'RawMessage' table
     raw_message: Mapped[List['RawMessage']] = relationship(back_populates='message_source')
-    # Relationships to 'VacancySources' table
-    vacancy_sources: Mapped[List['VacancySources']] = relationship(back_populates='message_source')
 
 
 class MessageType(Base):
     """
     A model class for message types
-    Класс-модель для типов сообщений
+    Класс-модель (справочник) для типов сообщений
     """
-    __tablename__ = TableNames.message_type.value  # Table name in the database / Имя таблицы в базе данных
+    __tablename__ = TableNames.MESSAGE_TYPE.value  # Table name in the database / Имя таблицы в базе данных
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     # Relationships to 'raw_messages' table
     raw_message: Mapped[List['RawMessage']] = relationship(back_populates='message_type')
 
 
+class VacancyAttribute(Base):
+    """
+    A model class for vacancy attributes names
+    Класс-модель (справочник) для названий атрибутов вакансий
+    """
+    __tablename__ = TableNames.VACANCY_ATTRS.value  # Table name in the database / Имя таблицы в базе данных
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String, unique=True)
+    type: Mapped[str] = mapped_column(String)
+    # Relationships to 'VacancyData' table
+    vacancy_attr: Mapped[List['VacancyData']] = relationship(back_populates='attr_name')
+
+
 # TypeVar for model classes, bound to Base
 ModelType = TypeVar('ModelType', bound=Base)
+
+
+# def get_vacancy_attr(attr: str) -> str:
+#     """
+#     Пользовательская функция для обработки параметра вакансии при получении его из разных источников
+#     """
+#     return ' '.join([attr, '1'])
 
 
 class DatabaseHandler:
@@ -433,7 +439,8 @@ class DatabaseHandler:
         if filter_fields and existing:
             # Updating an existing record / Обновляем существующую запись
             for key, value in update_fields.items():
-                setattr(existing, key, value)
+                if hasattr(existing, key):
+                    setattr(existing, key, value)
             added = False
         else:
             # Create a new record / Создаем новую запись
@@ -443,82 +450,109 @@ class DatabaseHandler:
             added = True
         return existing, added
 
-    def setup_database_connection(self):
+    @staticmethod
+    def setup_database_connection():
         """
         Настройка параметров подключения к базе данных SQLite
         """
 
-        # SQLite setting
-        @event.listens_for(self.engine, "connect")
+        # SQLite database setting
+        @event.listens_for(Engine, "connect")
         def set_sqlite_pragma(dbapi_conn, _):  # _ используется вместо необязательного параметра connection_record
             cursor = dbapi_conn.cursor()
             cursor.execute("PRAGMA foreign_keys=ON")  # Enabling foreign key constraints
             cursor.execute("PRAGMA journal_mode=WAL")  # Write-Ahead Logging
-            cursor.execute("PRAGMA synchronous=NORMAL")  # Быстрее записи
+            cursor.execute("PRAGMA synchronous=NORMAL")  # Быстрее запись
             cursor.execute("PRAGMA cache_size=-64000")  # 64MB кеша
             cursor.execute("PRAGMA temp_store=MEMORY")  # Временные данные в RAM
             cursor.close()
+            # # Регистрируем пользовательские функции в SQLite
+            # dbapi_conn.create_function("vac_attr", 1, get_vacancy_attr)
 
     def __init__(self):
         """
         Initializes the database handler by creating an engine, a session, and the necessary tables.
         Инициализирует обработчик базы данных, создавая движок, сессию и необходимые таблицы.
         """
-        # Connecting to the database. Creating a database connection and session
-        # Подключение к базе данных. Создаем соединение с базой данных и сессию
+
+        # Connecting to the database. Creating and setup a database connection
+        # Подключение к базе данных. Создаем соединение с базой данных и настраиваем его
         self.engine = create_engine(f'sqlite:///{GlobalConst.database_file}')
         self.setup_database_connection()
-        self.session = Session(self.engine)
-        # SQL для создания представления Vacancy
-        vac_t = TableNames.vacancy.value
-        vac_sour_t = TableNames.vacancy_sources.value
-        select_str = f'{vac_t}.domain, {vac_sour_t}.location, {vac_sour_t}.id'
-        create_view = DDL("""
-            CREATE VIEW IF NOT EXISTS """ + TableNames.vacancies.value + """ AS
-            SELECT """ + select_str + """
-            FROM """ + vac_t + """
-            INNER JOIN """ + vac_sour_t + """ 
-            ON """ + vac_t + """.id = """ + vac_sour_t + """.vacancy_id
-        """)
-        # Привязываем создание VIEW к событию после создания таблиц
-        event.listen(Base.metadata, 'after_create', create_view)
-        # Creating tables in the database if they do not exist
-        # Создаем таблицы в базе данных, если они отсутствуют
+        # # Пересоздаем представление CreateVacancyFinal
+        # sql_text = f'DROP VIEW IF EXISTS {TableNames.create_vacancy_final.value}'
+        # self.engine.connect().execute(text(sql_text))
+        # # Формируем SQL инструкцию для создания View после создания всех таблиц
+        # vac_t = TableNames.vacancy_base.value
+        # vac_sour_t = TableNames.vacancy_sources.value
+        # select_str = f'vac_attr({vac_t}.domain) as domain, {vac_sour_t}.location, {vac_sour_t}.id'
+        # create_view = DDL("""
+        #     CREATE VIEW IF NOT EXISTS """ + TableNames.create_vacancy_final.value + """ AS
+        #     SELECT """ + select_str + """
+        #     FROM """ + vac_t + """
+        #     INNER JOIN """ + vac_sour_t + """
+        #     ON """ + vac_t + """.id = """ + vac_sour_t + """.vacancy_id
+        # """)
+        # # Привязываем создание VIEW к событию после создания таблиц
+        # event.listen(Base.metadata, 'after_create', create_view)
+        # Creating tables in the database if they do not exist. Crating session
+        # Создаем таблицы в базе данных, если они отсутствуют. Создаем сессию
         Base.metadata.create_all(self.engine)
-        # Проверяем наличие данных в статической таблице с источниками сообщений и добавляем их при необходимости
+        self.session = Session(self.engine)
+        # Обновляем или создаем статические таблицы-справочники.
+        # Источники сообщений
         for message_source in MessageSources:
-            self.upsert_record(MessageSource, dict(id=message_source.value),
-                               dict(name=message_source.name))
-        # Проверяем наличие данных в статической таблице с типами сообщений и добавляем их при необходимости
+            self.upsert_record(MessageSource, {'id': message_source.value},
+                               {'name': message_source.name})
+        # Типы сообщений
         for message_type in MessageTypes:
-            self.upsert_record(MessageType, dict(id=message_type.type_id),
-                               dict(name=message_type.name))
+            self.upsert_record(MessageType, {'id': message_type.type_id},
+                               {'name': message_type.name})
+        self.session.commit()
+        # Атрибуты вакансий
+        for parameter in VacancyAttrs:
+            self.upsert_record(VacancyAttribute, {'id': parameter.attr_id},
+                               {'name': parameter.name, 'type': parameter.attr_type})
         self.session.commit()
 
-    def export_data_to_excel(self):
-        """
-        Exporting data from the database to an MS Excel file
-        Экспорт данных из БД в файл формата MS Excel
-        """
-        data_frames = {}
-        # Импортируем данные из каждой таблицы в соответствующий DataFrame
-        # и устанавливаем имена столбцов для Excel
+        # result = self.engine.connect().execute(text("SELECT vac_attr('test')")).scalar()
+        # print(result)
+        # self.vacancy_final_create()
+
+    # def vacancy_final_create(self):
+    #     # Удаляем таблицу со списком вакансий
+    #     sql_text = f'DROP TABLE IF EXISTS {TableNames.vacancy_final.value}'
+    #     self.engine.connect().execute(text(sql_text))
+    #     # Пересоздаем таблицу со списком вакансий с учетом вычисляемых полей
+    #     sql_text = f'CREATE TABLE {TableNames.vacancy_final.value} AS SELECT * FROM {TableNames.create_vacancy_final.value}'
+    #     self.engine.connect().execute(text(sql_text))
+    #     self.session.commit()
+
+
+def export_data_to_excel(self):
+    """
+    Exporting data from the database to an MS Excel file
+    Экспорт данных из БД в файл формата MS Excel
+    """
+    data_frames = {}
+    # Импортируем данные из каждой таблицы в соответствующий DataFrame
+    # и устанавливаем имена столбцов для Excel
+    for table in TableNames.get_table_names():
+        data_frames[table] = pd.read_sql(config.export_to_excel[table].sql, self.engine.connect())
+        data_frames[table].columns = config.export_to_excel[table].columns.values()
+    # Determining the available Excel file name for export
+    # Определяем доступное имя Excel файла для экспорта
+    excel_file_suffix = 1
+    excel_file_name = Path(GlobalConst.excel_file)
+    while excel_file_name.exists():
+        excel_file_name = Path(excel_file_name.as_posix().replace('.xlsx', f'({excel_file_suffix}).xlsx'))
+        excel_file_suffix += 1
+    # Writing DataFrame(s) to the corresponding sheets of the Excel file
+    # Записываем DataFrame(s) в соответствующие листы файла Excel
+    with pd.ExcelWriter(excel_file_name, engine="openpyxl") as writer:
         for table in TableNames.get_table_names():
-            data_frames[table] = pd.read_sql(config.export_to_excel[table].sql, self.engine.connect())
-            data_frames[table].columns = config.export_to_excel[table].columns.values()
-        # Determining the available Excel file name for export
-        # Определяем доступное имя Excel файла для экспорта
-        excel_file_suffix = 1
-        excel_file_name = Path(GlobalConst.excel_file)
-        while excel_file_name.exists():
-            excel_file_name = Path(excel_file_name.as_posix().replace('.xlsx', f'({excel_file_suffix}).xlsx'))
-            excel_file_suffix += 1
-        # Writing DataFrame(s) to the corresponding sheets of the Excel file
-        # Записываем DataFrame(s) в соответствующие листы файла Excel
-        with pd.ExcelWriter(excel_file_name, engine="openpyxl") as writer:
-            for table in TableNames.get_table_names():
-                data_frames[table].to_excel(writer, sheet_name=config.export_to_excel[table].sheet_name,
-                                            index=False, header=True, freeze_panes=(1, 1))
+            data_frames[table].to_excel(writer, sheet_name=config.export_to_excel[table].sheet_name,
+                                        index=False, header=True, freeze_panes=(1, 1))
 
 
 # Создаем экземпляр DatabaseHandler()

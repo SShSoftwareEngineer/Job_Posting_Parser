@@ -8,8 +8,8 @@ from bs4 import BeautifulSoup
 from telethon.tl.types import Message
 
 from config_handler import tg_vacancy_text_signs, regex_patterns, tg_statistic_text_signs, tg_messages_signs, \
-    email_messages_signs
-from configs.config import MessageSources, MessageTypes
+    email_messages_signs, email_vacancy_html_signs
+from configs.config import MessageSources, MessageTypes, VacancyAttrs
 from email_handler import decode_email_field
 from utils import str_to_numeric, parse_date_string
 
@@ -24,7 +24,7 @@ class MessageParser(ABC):
         pass
 
 
-class TgRawMessageParser(MessageParser):
+class TgRawParser(MessageParser):
     """
     Класс для парсинга исходных сообщений Telegram, возвращает словарь с результатами парсинга
     """
@@ -96,55 +96,57 @@ class TgVacancyTextParser(MessageParser):
             str_last = re.sub(r'[*_`]+', '', strings[-1]).replace('  ', ' ')
             # Extracting the vacancy description from the Telegram message text
             # Извлечение описания вакансии из сообщения Telegram
-            parsed_data['job_desc'] = '\n'.join(strings[2:-2] if len(strings) > 4 else [])
+            parsed_data[VacancyAttrs.JOB_DESC.attr_id] = '\n'.join(strings[2:-2] if len(strings) > 4 else [])
             # Extracting the position and company name from the Telegram message text
             # Извлечение позиции, названия компании из текста сообщения Telegram
             matching = re.split(f"{'|'.join(tg_vacancy_text_signs.position_company)}", str_1)
             if matching:
-                parsed_data['position'] = matching[0]
+                parsed_data[VacancyAttrs.POSITION.attr_id] = matching[0]
                 if len(matching) > 1:
-                    parsed_data['company'] = matching[1]
+                    parsed_data[VacancyAttrs.COMPANY.attr_id] = matching[1]
             else:
-                parsed_data['position'] = str_1
+                parsed_data[VacancyAttrs.POSITION.attr_id] = str_1
             # Extracting the company location and experience requirements from the Telegram message text
             # Извлечение локации компании, опыта работы из текста сообщения Telegram
             matching = re.search(
                 f'(.+), {regex_patterns.numeric}? ?({"|".join(tg_vacancy_text_signs.location_experience)})', str_2)
             if matching:
-                parsed_data['location'] = matching.group(1)
-                parsed_data['experience'] = cast(int | None, str_to_numeric(matching.group(2)))
+                parsed_data[VacancyAttrs.LOCATION.attr_id] = matching.group(1)
+                parsed_data[VacancyAttrs.EXPERIENCE.attr_id] = cast(int | None, str_to_numeric(matching.group(2)))
                 if matching.group(2) is None and matching.group(3) is not None:
-                    parsed_data['experience'] = 0
+                    parsed_data[VacancyAttrs.EXPERIENCE.attr_id] = 0
             # Extracting salary information from the Telegram message text
             # Извлечение информации о зарплате из текста сообщения Telegram
-            matching = re.search(fr'{regex_patterns.salary_range}\Z', str_2)
-            if matching:
-                if len(matching.groups()) == 2:
-                    parsed_data['salary_from'] = cast(int | None, str_to_numeric(matching.groups()[-2]))
-                    parsed_data['salary_to'] = cast(int | None, str_to_numeric(matching.groups()[-1]))
-            else:
-                matching = re.search(fr'{regex_patterns.salary}\Z', str_2)
-                if matching:
-                    parsed_data['salary_from'] = cast(int | None, str_to_numeric(matching.groups()[-1]))
-                    parsed_data['salary_to'] = parsed_data['salary_to']
+            salary_min, salary_max = get_salary(str_2)
+            if salary_min:
+                parsed_data[VacancyAttrs.SALARY_FROM.attr_id] = salary_min
+            if salary_max:
+                parsed_data[VacancyAttrs.SALARY_TO.attr_id] = salary_max
             # Extracting full vacancy text URL on the website from the Telegram message text
             # Извлечение URL вакансии на сайте из текста сообщения Telegram
             matching = re.search(regex_patterns.url, text_part)
             if matching:
-                parsed_data['url'] = matching.group(0)
+                parsed_data[VacancyAttrs.URL.attr_id] = matching.group(0)
             # Extracting subscription to job vacancy messages from the Telegram message text
             # Извлечение информации о подписке рассылки из текста сообщения Telegram
             matching = re.sub(f'{"|".join(tg_vacancy_text_signs.subscription)}', '', str_last)
             if matching:
-                parsed_data['subscription'] = matching.strip('\"\' *_`')
+                parsed_data[VacancyAttrs.SUBSCRIPTION.attr_id] = matching.strip('\"\' *_`')
+            # Сортировка данных парсинга
+            parsed_data = dict(sorted(parsed_data.items()))
             # Подсчет успешно распарсенных полей / Counting successfully parsed fields
-            parsed_fields = ['position', 'job_desc', 'location', 'experience', 'salary_from', 'salary_to',
-                             'company', 'url', 'subscription']
+            parsed_data['text_parsing_error'] = ''
+            parsed_fields = [VacancyAttrs.POSITION.attr_id, VacancyAttrs.JOB_DESC.attr_id,
+                             VacancyAttrs.LOCATION.attr_id, VacancyAttrs.EXPERIENCE.attr_id,
+                             VacancyAttrs.SALARY_FROM.attr_id, VacancyAttrs.SALARY_TO.attr_id,
+                             VacancyAttrs.COMPANY.attr_id, VacancyAttrs.URL.attr_id, VacancyAttrs.SUBSCRIPTION.attr_id]
             if text_part.find('$') == -1:
-                parsed_fields.remove('salary_from')
-                parsed_fields.remove('salary_to')
+                parsed_fields.remove(VacancyAttrs.SALARY_FROM.attr_id)
+                parsed_fields.remove(VacancyAttrs.SALARY_TO.attr_id)
             unsuccessfully_parsed_fields = [field for field in parsed_fields if parsed_data.get(field) is None]
             if unsuccessfully_parsed_fields:
+                unsuccessfully_parsed_fields = [VacancyAttrs.get_name_by_id(attr_id) for attr_id in
+                                                unsuccessfully_parsed_fields.copy()]
                 parsed_data['text_parsing_error'] = (f'{len(unsuccessfully_parsed_fields)} | {len(parsed_fields)},'
                                                      f' {', '.join(unsuccessfully_parsed_fields)}'
                                                      f'{', separate' if text_part.find('\n\n') != -1 else ''}')
@@ -203,7 +205,7 @@ class TgStatisticTextParser(MessageParser):
         return parsed_data
 
 
-class EmailRawMessageParser(MessageParser):
+class EmailRawParser(MessageParser):
     """
     Класс для парсинга исходных сообщений Email, возвращает словарь с результатами парсинга
     """
@@ -264,12 +266,12 @@ class EmailRawMessageParser(MessageParser):
         return parsed_data
 
 
-class EmailVacancyMessageParser(MessageParser):
+class EmailVacancyHTMLParser(MessageParser):
     """
     Класс для парсинга сообщений Email с вакансиями, возвращает словарь с результатами парсинга
     """
 
-    def parse(self, html: str) -> dict:
+    def parse(self, html: str) -> list[dict]:
         """
         Функция для парсинга сообщений Email с вакансиями, возвращает словарь с результатами парсинга
         """
@@ -277,10 +279,88 @@ class EmailVacancyMessageParser(MessageParser):
         # Create a BeautifulSoup object for parsing the HTML page with the job posting text
         # Создаем объект BeautifulSoup для парсинга HTML-страницы с текстом вакансии
         soup = BeautifulSoup(html, 'lxml')
+        # Разделение HTML сообщения с несколькими вакансиями на отдельные части по заданному тегу и стилю
+        signs = email_vacancy_html_signs
+        html_parts = None
+        for splitter in signs.splitters:
+            if html_parts is None:
+                html_parts = soup.find_all(splitter.tag,
+                                           attrs={splitter.attr_name: get_style_checker(splitter.attr_value)})
+        parsed_vacancies_data = []
+        # Обработка каждой части HTML сообщения с вакансией
+        for html_part in html_parts:
+            parsed_data = {}
+            # Извлечение позиции и URL, название позиции находится в первом теге <a>
+            signs = email_vacancy_html_signs.position_url_selector
+            position_url_tag = html_part.find(signs.tag, attrs={signs.attr_name: get_style_checker(signs.attr_value)})
+            if position_url_tag:
+                parsed_data[VacancyAttrs.POSITION.attr_id] = position_url_tag.get_text(strip=True)
+                # URL находится в атрибуте href
+                parsed_data[VacancyAttrs.URL.attr_id] = position_url_tag.get('href')
+            # Извлечение названия компании по заданному селектору
+            signs = email_vacancy_html_signs.company_selector
+            company_tag = html_part.find(signs.tag, attrs={signs.attr_name: get_class_checker(signs.attr_value)})
+            # company_tag = html_part.find('span', class_='djinni-whois-expanded')
+            company_text = company_tag.get_text(strip=True) if company_tag else ''
+            if company_text:
+                for pattern in email_vacancy_html_signs.position_company:
+                    company_text.replace(pattern, '', 1)
+                parsed_data[VacancyAttrs.COMPANY.attr_id] = company_text
+            # Извлечение локации компании, опыта работы, информации о зарплате,
+            # которые содержатся в теге <p> с классом djinni-whois-expanded.
+            signs = email_vacancy_html_signs.location_experience_salary_selector
+            location_experience_salary_tag = html_part.find(signs.tag, attrs={
+                signs.attr_name: get_class_checker(signs.attr_value)})
+            # location_experience_salary_tag = html_part.find('p', class_='djinni-whois-expanded')
+            tag_text = location_experience_salary_tag.get_text(strip=True) if location_experience_salary_tag else ''
+            if tag_text:
+                # Извлечение информации о зарплате, которая содержится в отдельном теге <span> внутри тега <p>
+                signs = email_vacancy_html_signs.salary_selector
+                salary_tag = location_experience_salary_tag.find(signs.tag, attrs={
+                    signs.attr_name: get_style_checker(signs.attr_value)})
+                # salary_tag = location_experience_salary_tag.find('span',
+                #                                                  style=lambda value: value and 'color:#4cae4c' in value)
+                salary_text = salary_tag.get_text(strip=True) if salary_tag else ''
+                if salary_text:
+                    salary_min, salary_max = get_salary(salary_text)
+                    if salary_min:
+                        parsed_data[VacancyAttrs.SALARY_FROM.attr_id] = salary_min
+                    if salary_max:
+                        parsed_data[VacancyAttrs.SALARY_TO.attr_id] = salary_max
+                # Удаляем зарплату из общего текста, чтобы получить чистую Локацию/Опыт
+                tag_text = tag_text.replace(salary_text, '').strip()
+                # Извлечение Локации и Опыта # Тут ошибка
+                parts = [part.strip() for part in tag_text.split('·') if part.strip()]
+                if len(parts) >= 1:
+                    parsed_data[VacancyAttrs.LOCATION.attr_id] = parts[0]
+                if len(parts) >= 2:
+                    parsed_data[VacancyAttrs.EXPERIENCE.attr_id] = parts[1]
+            # Извлекаем описание вакансии, которое содержится в первом теге <p> после таблицы с основными данными
+            signs = email_vacancy_html_signs.job_desc_selector
+            job_desc_tag = html_part.find(signs.tag, attrs={signs.attr_name: get_style_checker(signs.attr_value)})
+            # job_desc_tag = html_part.find('p', style=lambda value: value and 'margin:5px 0;color:#333' in value)
+            job_desc_text = job_desc_tag.get_text(strip=True) if job_desc_tag else ''
+            if job_desc_text:
+                # Получаем весь текст и удаляем "Подробнее" и <br> в конце
+                job_desc_text = job_desc_tag.get_text(strip=True)
+                # Удаляем текст ссылки "Подробнее" из описания, находим последнюю строку, которая является ссылкой "Подробнее"
+                signs = email_vacancy_html_signs.details_link
+                details_link_tag = job_desc_tag.find(signs.tag, attrs={signs.attr_name: get_style_checker(signs.attr_value)})
+                # details_link = job_desc_tag.find('a', text='Подробнее')
+                if details_link_tag:
+                    # Находим и удаляем "Подробнее" и предшествующую ему часть текста
+                    job_desc_text = job_desc_text.rsplit(details_link_tag.get_text(), 1)[0].strip()
+                # Удаляем служебные символы и многоточие
+                if job_desc_text.endswith('…'):
+                    job_desc_text = job_desc_text[:-1].strip()
+                parsed_data[VacancyAttrs.JOB_DESC.attr_id] = job_desc_text
 
-        parsed_data = {}
+            for key, value in parsed_data.items():
+                print(VacancyAttrs.get_name_by_id(key), ': ', value)
+            print()
 
-        return parsed_data
+            parsed_vacancies_data.append(parsed_data)
+        return parsed_vacancies_data
 
 
 def tg_detect_message_type(msg_text: str) -> MessageTypes:
@@ -301,13 +381,72 @@ def email_detect_message_type(email_html: str) -> MessageTypes:
     """
     Определяет тип Email сообщения по его HTML или тексту
     """
+
+    # soup = BeautifulSoup(html, 'lxml')
+    # # Разделение HTML сообщения с несколькими вакансиями на отдельные части по тегам <td>,
+    # # где в стиле содержится 'padding-bottom:24px'
+    # style_filter = lambda value: (
+    #         value and any('padding-bottom:24px' in part.strip().lower() for part in value.split(';')))
+    # html_parts = soup.find_all('td', style=style_filter)
+
     result = MessageTypes.EMAIL_UNKNOWN
     soup = BeautifulSoup(email_html, 'lxml')
     for vacancy_signs in email_messages_signs.vacancy:
-        if soup.find_all(vacancy_signs.tag, attrs={vacancy_signs.attr_name: vacancy_signs.attr_value}):
+        if soup.find_all(vacancy_signs.tag,
+                         attrs={vacancy_signs.attr_name: get_style_checker(vacancy_signs.attr_value)}):
             result = MessageTypes.EMAIL_VACANCY
     return result
 
+
+def get_salary(salary_str: str) -> tuple[int | None, int | None]:
+    """
+    Извлекает информацию о заработной плате по шаблону
+    """
+    salary_from = salary_to = None
+    matching = re.search(fr'{regex_patterns.salary_range}\Z', salary_str)
+    if matching:
+        if len(matching.groups()) == 2:
+            salary_from = cast(int | None, str_to_numeric(matching.groups()[-2]))
+            salary_to = cast(int | None, str_to_numeric(matching.groups()[-1]))
+    else:
+        matching = re.search(fr'{regex_patterns.salary}\Z', salary_str)
+        if matching:
+            salary_from = cast(int | None, str_to_numeric(matching.groups()[-1]))
+            salary_to = salary_from
+    return salary_from, salary_to
+
+
+def get_style_checker(required_styles: list[str]):
+    """
+    Создает функцию для проверки наличия заданных стилей в строке стиля в теге
+    """
+
+    def checker(value: str):
+        if not value:
+            return False
+        # Разбиваем значения в строке стиля на отдельные стили
+        styles = [stl.strip().lower() for stl in value.split(';') if stl.strip()]
+        # Проверяем, что все заданные стили есть
+        return all(req_stl in styles for req_stl in required_styles)
+
+    return checker
+
+def get_class_checker(required_classes):
+    """
+    Создает функцию для проверки наличия заданных классов в строке названий классов в теге
+    """
+
+    def checker(value):
+        if not value:
+            return False
+        # class_ в BS приходит как список
+        if isinstance(value, list):
+            classes = [clss.lower() for clss in value]
+        else:
+            classes = [clss.lower() for clss in value.split()]
+        # Проверяем, что все заданные классы есть
+        return all(req_clss.lower() in classes for req_clss in required_classes)
+    return checker
 
 if __name__ == '__main__':
     pass

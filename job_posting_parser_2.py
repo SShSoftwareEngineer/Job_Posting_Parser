@@ -8,11 +8,11 @@ from sqlalchemy import select, func
 from dotenv import dotenv_values
 from telethon import TelegramClient
 
-from configs.config import GlobalConst, MessageSources, MessageTypes
-from database_handler import db_handler, RawMessage, Vacancy, Statistic, Service, VacancyWeb
+from configs.config import GlobalConst, MessageSources, MessageTypes, VacancyAttrs
+from database_handler import db_handler, RawMessage, Statistic, Service, VacancyWeb, Vacancy, VacancyData
 import telegram_handler as tg_handler
 from email_handler import get_email_list, init_imap_client
-from parsers import TgRawMessageParser, TgVacancyTextParser, TgStatisticTextParser, EmailRawMessageParser
+from parsers import TgRawParser, TgVacancyTextParser, TgStatisticTextParser, EmailRawParser, EmailVacancyHTMLParser
 
 
 def processing_telegram_messages(tg_client: TelegramClient, bot_name: str, messages_counter: Counter) -> Counter:
@@ -32,41 +32,56 @@ def processing_telegram_messages(tg_client: TelegramClient, bot_name: str, messa
     last_date = db_handler.session.execute(stmt).scalar()
     # Retrieving new messages from the Telegram bot / Получаем новые сообщения из Telegram бота
     tg_messages = tg_handler.get_new_messages(tg_client, bot_name, last_date)
-    # Обновляем счетчик типов сообщений / Updating the message types counter
+    # Updating the message types counter / Обновляем счетчик типов сообщений
     messages_counter[MessageSources.TELEGRAM.name] = len(tg_messages)
     # Processing the received list of messages / Обрабатываем полученный список сообщений
     for message in tg_messages:
         # Parsing the raw Telegram message / Парсим исходное сообщение Telegram
-        parsing_data = TgRawMessageParser().parse(message=message)
+        parsing_data = TgRawParser().parse(message=message)
         # Saving the raw message to the database / Сохраняем исходное сообщение в базе данных
         filter_fields = {'message_id': parsing_data['message_id']}
         # Removing unnecessary fields from parsing data / Убираем из данных парсинга ненужные поля
         del parsing_data['message_id']
         db_raw_message, added = db_handler.upsert_record(RawMessage, filter_fields, parsing_data)
-        # Обновляем счетчик типов сообщений / Updating the message types counter
+        # Updating the message types counter / Обновляем счетчик типов сообщений
         messages_counter.update({f'TG_RAW {'added' if added else 'updated'}': 1})
         # Processing the message based on its type / Обрабатываем сообщения в зависимости от их типа
         match db_raw_message.message_type.name:
             case MessageTypes.TG_VACANCY.name:
                 # Parsing the vacancy message / Парсим сообщение с вакансией
                 parsing_data_list = TgVacancyTextParser().parse(text=db_raw_message.text)
-                for parsing_data in parsing_data_list:
-                    # Создаем объект объявления о вакансии на сайте / Creating a job vacancy object on the site
-                    db_vacancy_web, added = db_handler.upsert_record(VacancyWeb, {'url': parsing_data['url']}, {})
-                    del parsing_data['url']
-                    # Обновляем счетчик типов сообщений / Updating the message types counter
+                for data_number, parsing_data in enumerate(parsing_data_list):
+                    # Creating or finding a job vacancy object on the site / Создаем или получаем объект объявления о вакансии на сайте
+                    db_vacancy_web, added = db_handler.upsert_record(VacancyWeb,
+                                                                     {'url': parsing_data.get(
+                                                                         VacancyAttrs.URL.attr_id)}, {})
+                    del parsing_data[VacancyAttrs.URL.attr_id]
+                    # Updating the message URL's counter / Обновляем счетчик URL сообщений
                     messages_counter.update({f'TG_URL {'added' if added else 'updated'}': 1})
                     # Getting the hash value of the vacancy data to check for duplicates
                     # Получаем хэш параметров вакансии для проверки на дубликаты
-                    json_str = json.dumps(parsing_data, sort_keys=True, ensure_ascii=False)
+                    json_str = json.dumps([db_raw_message.date.strftime('%d/%m/%Y %H:%M:%S'),
+                                           db_raw_message.message_id, data_number], ensure_ascii=False)
                     hash_value = hashlib.md5(json_str.encode('utf-8')).hexdigest()
-                    # Saving the vacancy message to the database / Сохраняем сообщение с вакансией в базу данных
-                    db_vacancy, added = db_handler.upsert_record(Vacancy, {'text_data_hash': hash_value}, parsing_data)
-                    db_vacancy.vacancy_web.append(db_vacancy_web)
-                    db_raw_message.vacancy.append(db_vacancy)
-                    # Обновляем счетчик типов сообщений / Updating the message types counter
+                    # Creating or finding a job vacancy object / Создаем или получаем объект вакансии
+                    db_vacancy, added = db_handler.upsert_record(Vacancy, {'data_hash': hash_value},
+                                                                 {'text_parsing_error': parsing_data.get(
+                                                                     'text_parsing_error')})
+                    del parsing_data['text_parsing_error']
+                    # Updating the vacancy messages counter / Обновляем счетчик сообщений с вакансиями
                     messages_counter.update(
                         {f'{db_raw_message.message_type.name} {'added' if added else 'updated'}': 1})
+                    # Добавляем связи вакансии
+                    db_vacancy.vacancy_web.append(db_vacancy_web)
+                    db_raw_message.vacancy.append(db_vacancy)
+                    for attr_id, attr_value in parsing_data.items():
+                        # Creating or finding a attribute vacancy object / Создаем или получаем объекты аттрибутов вакансии
+                        db_attr, added = db_handler.upsert_record(VacancyData,
+                                                                  {'attr_name_id': attr_id, 'attr_value': attr_value},
+                                                                  {})
+                        if db_attr not in db_vacancy.vacancy_data:
+                            db_vacancy.vacancy_data.append(db_attr)
+
             case MessageTypes.TG_STATISTIC.name:
                 # Parsing the statistic message / Парсим сообщение со статистикой
                 parsing_data = TgStatisticTextParser().parse(text=db_raw_message.text)
@@ -108,7 +123,7 @@ def processing_email_messages(imap_client: IMAPClient, folder_name: str, message
     if last_date is None:
         last_date = datetime(2020, 1, 1).strftime('%d-%b-%Y')
 
-    last_date = datetime(2023, 1, 1).strftime('%d-%b-%Y')
+    last_date = datetime(2025, 1, 1).strftime('%d-%b-%Y')
 
     # Retrieving new emails  / Получаем новые сообщения электронной почты
     email_messages = get_email_list(imap_client=imap_client, folder_name=folder_name, last_date=last_date)
@@ -117,7 +132,7 @@ def processing_email_messages(imap_client: IMAPClient, folder_name: str, message
     # Processing the received list of messages / Обрабатываем полученный список сообщений
     for email_uid, message in email_messages.items():
         # Parsing the raw Email message / Парсим исходное Email сообщение
-        parsing_data = EmailRawMessageParser().parse(email_uid=email_uid, email_body=message)
+        parsing_data = EmailRawParser().parse(email_uid=email_uid, email_body=message)
         # Saving the raw message to the database / Сохраняем исходное сообщение в базе данных
         filter_fields = {'email_uid': parsing_data['email_uid']}
         # Removing unnecessary fields from parsing data / Убираем из данных парсинга ненужные поля
@@ -128,25 +143,26 @@ def processing_email_messages(imap_client: IMAPClient, folder_name: str, message
         # Обновляем счетчик типов сообщений / Updating the message types counter
         messages_counter.update({f'EMAIL_RAW {'added' if added else 'updated'}': 1})
         # Processing the message based on its type / Обрабатываем сообщения в зависимости от их типа
-        # match db_raw_message.message_type.name:
-        #     case MessageTypes.EMAIL_VACANCY.name:
-        #         # Parsing the vacancy message / Парсим сообщение с вакансией
-        #         parsing_data = EmailVacancyTextParser().parse(text=db_raw_message.text)
-        #         # Создаем объект объявления о вакансии на сайте / Creating a job vacancy object on the site
-        #         db_vacancy_web, added = db_handler.upsert_record(VacancyWeb, {'url': parsing_data['url']}, {})
-        #         del parsing_data['url']
-        #         # Обновляем счетчик типов сообщений / Updating the message types counter
-        #         messages_counter.update({f'TG_URL {'added' if added else 'updated'}': 1})
-        #         # Getting the hash value of the vacancy data to check for duplicates
-        #         # Получаем хэш параметров вакансии для проверки на дубликаты
-        #         json_str = json.dumps(parsing_data, sort_keys=True, ensure_ascii=False)
-        #         hash_value = hashlib.md5(json_str.encode('utf-8')).hexdigest()
-        #         # Saving the vacancy message to the database / Сохраняем сообщение с вакансией в базу данных
-        #         db_vacancy, added = db_handler.upsert_record(Vacancy, {'text_data_hash': hash_value}, parsing_data)
-        #         db_vacancy.vacancy_web.append(db_vacancy_web)
-        #         db_raw_message.vacancy.append(db_vacancy)
-        #         # Обновляем счетчик типов сообщений / Updating the message types counter
-        #         messages_counter.update({f'{db_raw_message.message_type.name} {'added' if added else 'updated'}': 1})
+        match db_raw_message.message_type.name:
+            case MessageTypes.EMAIL_VACANCY.name:
+                # Parsing the vacancy message / Парсим сообщение с вакансией
+                parsing_data = EmailVacancyHTMLParser().parse(html=db_raw_message.html)
+                pass
+                # Создаем объект объявления о вакансии на сайте / Creating a job vacancy object on the site
+                # db_vacancy_web, added = db_handler.upsert_record(VacancyWeb, {'url': parsing_data['url']}, {})
+                # del parsing_data['url']
+                # # Обновляем счетчик типов сообщений / Updating the message types counter
+                # messages_counter.update({f'TG_URL {'added' if added else 'updated'}': 1})
+                # # Getting the hash value of the vacancy data to check for duplicates
+                # # Получаем хэш параметров вакансии для проверки на дубликаты
+                # json_str = json.dumps(parsing_data, sort_keys=True, ensure_ascii=False)
+                # hash_value = hashlib.md5(json_str.encode('utf-8')).hexdigest()
+                # # Saving the vacancy message to the database / Сохраняем сообщение с вакансией в базу данных
+                # db_vacancy, added = db_handler.upsert_record(Vacancy, {'text_data_hash': hash_value}, parsing_data)
+                # db_vacancy.vacancy_web.append(db_vacancy_web)
+                # db_raw_message.vacancy.append(db_vacancy)
+                # # Обновляем счетчик типов сообщений / Updating the message types counter
+                # messages_counter.update({f'{db_raw_message.message_type.name} {'added' if added else 'updated'}': 1})
 
     return messages_counter
 

@@ -25,12 +25,12 @@ class MessageTypes(Enum):
     """
     Constants for different types of messages.
     """
-    TG_VACANCY = (1, 'tg_vacancy')
-    TG_STATISTIC = (2, 'tg_statistic')
-    TG_SERVICE = (3, 'tg_service')
-    TG_UNKNOWN = (4, 'tg_unknown')
-    EMAIL_VACANCY = (5, 'email_vacancy')
-    EMAIL_UNKNOWN = (6, 'email_unknown')
+    TG_VACANCY = 1, 'tg_vacancy'
+    TG_STATISTIC = 2, 'tg_statistic'
+    TG_SERVICE = 3, 'tg_service'
+    TG_UNKNOWN = 4, 'tg_unknown'
+    EMAIL_VACANCY = 5, 'email_vacancy'
+    EMAIL_UNKNOWN = 6, 'email_unknown'
 
     def __init__(self, type_id: int, config_name: str):
         """
@@ -94,22 +94,24 @@ class HttpStatusCodes(Enum):
     SERVICEUNAVAILABLE = 503
 
 
-@dataclass
 class TableNames(Enum):
     """
     Table names in the database for different types of messages.
     Имена таблиц в базе данных для разных типов сообщений.
     """
-    raw_message = 'raw_messages'
-    vacancy = 'vacancy'
-    vacancy_sources = 'vacancy_sources'
-    statistic = 'statistic'
-    service = 'service'
-    message_source = 'message_sources'
-    message_type = 'message_types'
-    vacancy_web = 'vacancy_web'
-    # View for vacancies
-    vacancies = 'vacancies'
+    RAW_MESSAGES = 'raw_messages'
+    VACANCIES = 'vacancies'
+    VACANCY_DATA = 'vacancy_data'
+    VACANCY_DATA_VACANCIES_LINKS = 'vacancy_data_vacancies_links'
+    VACANCY_ATTRS = 'vacancy_attrs'
+    VACANCY_WEB = 'vacancy_web'
+    STATISTIC = 'statistic'
+    SERVICE = 'service'
+    MESSAGE_SOURCE = 'message_sources'
+    MESSAGE_TYPE = 'message_types'
+
+    # # View for create vacancies list
+    # create_vacancy_final = 'create_vacancy_final'
 
     @staticmethod
     def get_table_names() -> list[str]:
@@ -117,6 +119,58 @@ class TableNames(Enum):
         Returns a list of model names and their corresponding table names.
         """
         return [item.value for item in TableNames]
+
+
+class VacancyAttrs(Enum):
+    """
+    Job parameter names.
+    Наименование параметров вакансий.
+    """
+
+    POSITION = 1, 'string'
+    LOCATION = 2, 'string'
+    EXPERIENCE = 3, 'float'
+    MAIN_TECH = 4, 'string'
+    TECH_STACK = 5, 'string'
+    LINGVO = 6, 'string'
+    SALARY_FROM = 7, 'integer'
+    SALARY_TO = 8, 'integer'
+    JOB_DESC = 9, 'string'
+    COMPANY = 10, 'string'
+    COMPANY_TYPE = 11, 'string'
+    DOMAIN = 12, 'string'
+    OFFICES = 13, 'string'
+    WORK_TYPE = 14, 'string'
+    CANDIDATE_LOCATIONS = 15, 'string'
+    SUBSCRIPTION = 16, 'string'
+    URL = 17, 'string'
+
+    def __init__(self, attr_id: int, attr_type: str):
+        """
+        Initializes the VacancyAttrs enum.
+        Инициализация VacancyAttrs enum.
+        Attributes:
+
+        """
+        self.attr_id = attr_id
+        self.attr_type = attr_type
+
+    @classmethod
+    def get_name_by_id(cls, attr_id: int) -> str:
+        """
+        Returns the VacancyAttrs.name in lower case for a given attr_id.
+        Возвращает VacancyAttrs.name для заданного attr_id.
+        Attributes:
+            attr_id (int): The ID of attribute.
+        Returns:
+            str: The corresponding name of VacancyAttrs enum member.
+        """
+
+        result = 0
+        for item in cls:
+            if item.attr_id == attr_id:
+                result = item.name.lower()
+        return result
 
 
 if __name__ == '__main__':
