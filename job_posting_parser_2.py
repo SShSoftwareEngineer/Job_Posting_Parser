@@ -12,7 +12,8 @@ from configs.config import GlobalConst, MessageSources, MessageTypes, VacancyAtt
 from database_handler import db_handler, RawMessage, Statistic, Service, VacancyWeb, Vacancy, VacancyData
 import telegram_handler as tg_handler
 from email_handler import get_email_list, init_imap_client
-from parsers import TgRawParser, TgVacancyTextParser, TgStatisticTextParser, EmailRawParser, EmailVacancyHTMLParser
+from parsers import TgRawParser, TgVacancyParser, TgStatisticParser, EmailRawParser, EmailVacancyParserVer0, \
+    EmailVacancyParserVer1
 
 
 def processing_telegram_messages(tg_client: TelegramClient, bot_name: str, messages_counter: Counter) -> Counter:
@@ -49,7 +50,7 @@ def processing_telegram_messages(tg_client: TelegramClient, bot_name: str, messa
         match db_raw_message.message_type.name:
             case MessageTypes.TG_VACANCY.name:
                 # Parsing the vacancy message / Парсим сообщение с вакансией
-                parsing_data_list = TgVacancyTextParser().parse(text=db_raw_message.text)
+                parsing_data_list = TgVacancyParser().parse(text=db_raw_message.text)
                 for data_number, parsing_data in enumerate(parsing_data_list):
                     # Creating or finding a job vacancy object on the site / Создаем или получаем объект объявления о вакансии на сайте
                     db_vacancy_web, added = db_handler.upsert_record(VacancyWeb,
@@ -84,7 +85,7 @@ def processing_telegram_messages(tg_client: TelegramClient, bot_name: str, messa
 
             case MessageTypes.TG_STATISTIC.name:
                 # Parsing the statistic message / Парсим сообщение со статистикой
-                parsing_data = TgStatisticTextParser().parse(text=db_raw_message.text)
+                parsing_data = TgStatisticParser().parse(text=db_raw_message.text)
                 # Adding a link to the raw message
                 # Добавляем связь с исходным сообщением
                 parsing_data.update({'raw_message': db_raw_message})
@@ -123,7 +124,7 @@ def processing_email_messages(imap_client: IMAPClient, folder_name: str, message
     if last_date is None:
         last_date = datetime(2020, 1, 1).strftime('%d-%b-%Y')
 
-    last_date = datetime(2025, 1, 1).strftime('%d-%b-%Y')
+    last_date = datetime(2025, 10, 1).strftime('%d-%b-%Y')
 
     # Retrieving new emails  / Получаем новые сообщения электронной почты
     email_messages = get_email_list(imap_client=imap_client, folder_name=folder_name, last_date=last_date)
@@ -146,7 +147,10 @@ def processing_email_messages(imap_client: IMAPClient, folder_name: str, message
         match db_raw_message.message_type.name:
             case MessageTypes.EMAIL_VACANCY.name:
                 # Parsing the vacancy message / Парсим сообщение с вакансией
-                parsing_data = EmailVacancyHTMLParser().parse(html=db_raw_message.html)
+                if db_raw_message.date <= datetime(2025, 1, 24).astimezone():
+                    html_parsing_data = EmailVacancyParserVer0().parse(html=db_raw_message.html)
+                if db_raw_message.date > datetime(2025, 1, 24).astimezone():
+                    html_parsing_data = EmailVacancyParserVer1().parse(html=db_raw_message.html)
                 pass
                 # Создаем объект объявления о вакансии на сайте / Creating a job vacancy object on the site
                 # db_vacancy_web, added = db_handler.upsert_record(VacancyWeb, {'url': parsing_data['url']}, {})

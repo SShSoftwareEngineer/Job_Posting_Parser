@@ -98,24 +98,53 @@ except ValidationError as err:
     print(f'Error in [email_messages_signs] section: {err}')
 
 
-class EmailVacancyHTMLSigns(BaseModel):
-    position_company: list[str]
-    location_experience: list[str]
-    subscription: list[str]
+class EmailVacancySelVer0(BaseModel):
     position_url_selector: Selector
     company_selector: Selector
     location_experience_salary_selector: Selector
     salary_selector: Selector
     job_desc_selector: Selector
-    details_link: Selector
-    splitters: list[Selector]
+    splitter_selectors: list[Selector]
 
 
-email_vacancy_html_signs = None
+email_vacancy_sel_0 = None
 try:
-    email_vacancy_html_signs = EmailVacancyHTMLSigns(**config_toml.get('email_vacancy_html_signs', {}))
+    email_vacancy_sel_0 = EmailVacancySelVer0(**config_toml.get('email_vacancy_sel_0', {}))
 except ValidationError as err:
-    print(f'Error in [email_vacancy_html_signs] section: {err}')
+    print(f'Error in [email_vacancy_sel_0] section: {err}')
+
+
+class EmailVacancySelVer1(BaseModel):
+    splitter_selector: Selector
+    position_url_selector: str
+    salary_selector: str
+    company_div_selector: Selector
+    company_span_selector: Selector
+    experience_lingvo_worktype_location_selector: Selector
+    job_desc_selector: Selector
+    subscription_selector: Selector
+
+
+email_vacancy_sel_1 = None
+try:
+    email_vacancy_sel_1 = EmailVacancySelVer1(**config_toml.get('email_vacancy_sel_1', {}))
+except ValidationError as err:
+    print(f'Error in [email_vacancy_sel_1] section: {err}')
+
+
+class EmailVacancyJunk(BaseModel):
+    company: list[str]
+    experience: list[str]
+    lingvo: list[str]
+    job_desc: list[str]
+    subscription: list[str]
+
+
+email_vacancy_junk = None
+try:
+    email_vacancy_junk = EmailVacancyJunk(**config_toml.get('email_vacancy_junk', {}))
+except ValidationError as err:
+    print(f'Error in [email_vacancy_junk] section: {err}')
 
 pass
 

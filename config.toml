@@ -56,31 +56,22 @@ salary = "\\$?{numeric_pattern}"
 salary_range = "\\$?{numeric_pattern}-{numeric_pattern}"
 
 
-# Сигнатуры для распознавания типов Email сообщений, class EmailMessagesSigns
+# Селекторы для распознавания типов Email сообщений, class EmailMessagesSigns
 [email_messages_signs]
-# Сигнатуры для типа 'vacancy'
+# Селекторы для типа 'vacancy'
 [[email_messages_signs.vacancy]]
 tag = "div"
 attr_name = "class"
 attr_value = ["card"]
-# Сигнатуры для типа 'vacancy'
+# Селекторы для типа 'vacancy'
 [[email_messages_signs.vacancy]]
 tag = "td"
 attr_name = "style"
 attr_value = ["padding-bottom:24px", "box-sizing:border-box"]
 
 
-
-# Сигнатуры для определения параметров вакансии из HTML Email вакансий, class EmailVacancyHTMLSigns
-[email_vacancy_html_signs]
-# Удаление лишних подстрок из позиции и компании
-position_company = [" в ", " at "]
-# Удаление лишних подстрок из локации и опыта соискателя
-location_experience = ["год опыта", "года опыта", "лет опыта", "роки досвіду", "років досвіду",
-    "year of experience", "years of experience",
-    "Без опыта", "без опыта", "No experience"]
-# Удаление лишних подстрок из названия подписки на рассылку
-subscription = ["Subscription:", "Подписка:", "Підписка:"]
+# Селекторы для определения параметров вакансии из HTML Email вакансий, class EmailVacancySelVer0 (до 24-01-2025 вкл.)
+[email_vacancy_sel_0]
 # Селектор позиции и URL
 position_url_selector = { tag = "a", attr_name = "style", attr_value = ["font-weight:bold", "font-size:18px"] }
 # Селектор названия компании
@@ -91,10 +82,41 @@ location_experience_salary_selector = { tag = "p", attr_name = "class", attr_val
 salary_selector = { tag = "span", attr_name = "style", attr_value = ["color:#4cae4c"] }
 # Селектор описания вакансии
 job_desc_selector = { tag = "p", attr_name = "style", attr_value = ["margin:5px 0", "color:#333"] }
-# Селектор лишнего текста в описании вакансии
-details_link = { tag = "a", attr_name = "text", attr_value = ["Подробнее"] }
-# Разделитель по селекторам между несколькикми вакансиями в одном сообщении
-[[email_vacancy_html_signs.splitters]]
+# Разделитель по селекторам между несколькими вакансиями в одном сообщении
+[[email_vacancy_html_sel.splitter_selectors]]
 tag = "td"
 attr_name = "style"
 attr_value = ["padding-bottom:24px"]
+
+
+# Селекторы для определения параметров вакансии из HTML Email вакансий, class EmailVacancySelVer1 (после 24-01-2025)
+[email_vacancy_sel_1]
+# Селектор разделитель между несколькими вакансиями в одном сообщении
+splitter_selector = { tag = "div", attr_name = "class", attr_value = ["card"] }
+# Селектор позиции, URL и зарплаты
+position_url_selector = "h3 a"
+# Селектор зарплаты
+salary_selector = "h3 span"
+# Селектор названия компании
+company_div_selector = { tag = "div", attr_name = "style", attr_value = ["margin-bottom: 8px"] }
+company_span_selector = { tag = "span", attr_name = "class", attr_value = ["details-text"] }
+# Селектор опыта, знания языка, типа работы, локации соискателей
+experience_lingvo_worktype_location_selector = { tag = "td", attr_name = "class", attr_value = ["details"] }
+# Селектор описания вакансии
+job_desc_selector = { tag = "p", attr_name = "style", attr_value = ["margin:0", "line-height:1.5"] }
+# Селектор подписки
+subscription_selector = { tag = "div", attr_name = "class", attr_value = ["djinni-whois-expanded"] }
+
+
+# Мусорные фрагменты текста для удаления из параметров вакансий, class EmailVacancyJunk
+[email_vacancy_junk]
+# Удаление лишних подстрок из позиции и компании
+company = ["в ", "at "]
+# Удаление лишних подстрок из локации и опыта соискателя
+experience = ["год опыта", "года опыта", "лет опыта", "Без опыта", "без опыта", "No experience",
+    "year of experience", "years of experience", "рік досвіду", "роки досвіду", "років досвіду"]
+lingvo = ["-", "–", "Середній", "Вище середнього", "Просунутий"]
+# Удаление лишних подстрок из опиасания вакансии
+job_desc = ["Подробнее", "Детальніше", "…"]
+# Удаление лишних подстрок из названия подписки на рассылку
+subscription = ["Subscription:", "Подписка:", "Підписка:"]
