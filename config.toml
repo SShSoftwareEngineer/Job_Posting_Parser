@@ -83,7 +83,7 @@ salary_selector = { tag = "span", attr_name = "style", attr_value = ["color:#4ca
 # Селектор описания вакансии
 job_desc_selector = { tag = "p", attr_name = "style", attr_value = ["margin:5px 0", "color:#333"] }
 # Разделитель по селекторам между несколькими вакансиями в одном сообщении
-[[email_vacancy_html_sel.splitter_selectors]]
+[[email_vacancy_sel_0.splitter_selectors]]
 tag = "td"
 attr_name = "style"
 attr_value = ["padding-bottom:24px"]
@@ -113,9 +113,11 @@ subscription_selector = { tag = "div", attr_name = "class", attr_value = ["djinn
 # Удаление лишних подстрок из позиции и компании
 company = ["в ", "at "]
 # Удаление лишних подстрок из локации и опыта соискателя
-experience = ["год опыта", "года опыта", "лет опыта", "Без опыта", "без опыта", "No experience",
-    "year of experience", "years of experience", "рік досвіду", "роки досвіду", "років досвіду"]
-lingvo = ["-", "–", "Середній", "Вище середнього", "Просунутий"]
+experience = ["год опыта", "года опыта", "лет опыта",
+    "Без опыта", "без опыта", "No experience", "Без досвіду",
+    "year of experience", "years of experience", "years",
+    "рік досвіду", "роки досвіду", "років досвіду", ]
+lingvo = ["-", "–", "Немає", "Початківець", "Елементарний", "Середній", "Вище середнього", "Просунутий", "Вільний"]
 # Удаление лишних подстрок из опиасания вакансии
 job_desc = ["Подробнее", "Детальніше", "…"]
 # Удаление лишних подстрок из названия подписки на рассылку

@@ -59,8 +59,8 @@ class TgRawParser(MessageParser):
         parsed_fields = ['date', 'message_id', 'text']
         unsuccessfully_parsed_fields = [field for field in parsed_fields if parsed_data.get(field) is None]
         if unsuccessfully_parsed_fields:
-            parsed_data['parsing_error'] = (f'{len(unsuccessfully_parsed_fields)} | {len(parsed_fields)},'
-                                            f' {', '.join(unsuccessfully_parsed_fields)}')
+            parsed_data['raw_parsing_error'] = (f'{len(unsuccessfully_parsed_fields)} | {len(parsed_fields)},'
+                                                f' {', '.join(unsuccessfully_parsed_fields)}')
         return parsed_data
 
 
@@ -130,24 +130,17 @@ class TgVacancyParser(MessageParser):
             matching = re.sub(f'{"|".join(tg_vacancy_text_signs.subscription)}', '', str_last)
             if matching:
                 parsed_data[VacancyAttrs.SUBSCRIPTION.attr_id] = matching.strip('\"\' *_`')
-            # Сортировка данных парсинга
-            parsed_data = dict(sorted(parsed_data.items()))
             # Подсчет успешно распарсенных полей / Counting successfully parsed fields
-            parsed_data['text_parsing_error'] = ''
-            parsed_fields = [VacancyAttrs.POSITION.attr_id, VacancyAttrs.JOB_DESC.attr_id,
-                             VacancyAttrs.LOCATION.attr_id, VacancyAttrs.EXPERIENCE.attr_id,
-                             VacancyAttrs.SALARY_FROM.attr_id, VacancyAttrs.SALARY_TO.attr_id,
-                             VacancyAttrs.COMPANY.attr_id, VacancyAttrs.URL.attr_id, VacancyAttrs.SUBSCRIPTION.attr_id]
-            if message_part.find('$') == -1:
-                parsed_fields.remove(VacancyAttrs.SALARY_FROM.attr_id)
-                parsed_fields.remove(VacancyAttrs.SALARY_TO.attr_id)
-            unsuccessfully_parsed_fields = [field for field in parsed_fields if parsed_data.get(field) is None]
-            if unsuccessfully_parsed_fields:
-                unsuccessfully_parsed_fields = [VacancyAttrs.get_name_by_id(attr_id) for attr_id in
-                                                unsuccessfully_parsed_fields.copy()]
-                parsed_data['text_parsing_error'] = (f'{len(unsuccessfully_parsed_fields)} | {len(parsed_fields)},'
-                                                     f' {', '.join(unsuccessfully_parsed_fields)}'
-                                                     f'{', separate' if message_part.find('\n\n') != -1 else ''}')
+            parsed_field_ids = [VacancyAttrs.POSITION.attr_id, VacancyAttrs.JOB_DESC.attr_id,
+                                VacancyAttrs.LOCATION.attr_id, VacancyAttrs.EXPERIENCE.attr_id,
+                                VacancyAttrs.SALARY_FROM.attr_id, VacancyAttrs.SALARY_TO.attr_id,
+                                VacancyAttrs.COMPANY.attr_id, VacancyAttrs.URL.attr_id,
+                                VacancyAttrs.SUBSCRIPTION.attr_id]
+            parsing_error = get_parsing_error(parsed_data, parsed_field_ids, message_part)
+            # Проверка на неправильное разделение вакансий / Checking for incorrect vacancy splitting
+            if message_part.find('\n\n') != -1:
+                parsing_error += ', separate' if parsing_error else 'separate'
+            parsed_data['message_parsing_error'] = parsing_error
             parsed_vacancies_data.append(parsed_data)
         return parsed_vacancies_data
 
@@ -196,8 +189,8 @@ class TgStatisticParser(MessageParser):
                          'candidates_per_week']
         unsuccessfully_parsed_fields = [field for field in parsed_fields if parsed_data.get(field) is None]
         if unsuccessfully_parsed_fields:
-            parsed_data['parsing_error'] = (f'{len(unsuccessfully_parsed_fields)} | {len(parsed_fields)},'
-                                            f' {', '.join(unsuccessfully_parsed_fields)}')
+            parsed_data['stat_parsing_error'] = (f'{len(unsuccessfully_parsed_fields)} | {len(parsed_fields)},'
+                                                 f' {', '.join(unsuccessfully_parsed_fields)}')
         return parsed_data
 
 
@@ -257,8 +250,8 @@ class EmailRawParser(MessageParser):
         parsed_fields = ['email_uid', 'date', 'text', 'html']
         unsuccessfully_parsed_fields = [field for field in parsed_fields if parsed_data.get(field) is None]
         if unsuccessfully_parsed_fields:
-            parsed_data['parsing_error'] = (f'{len(unsuccessfully_parsed_fields)} | {len(parsed_fields)},'
-                                            f' {', '.join(unsuccessfully_parsed_fields)}')
+            parsed_data['raw_parsing_error'] = (f'{len(unsuccessfully_parsed_fields)} | {len(parsed_fields)},'
+                                                f' {', '.join(unsuccessfully_parsed_fields)}')
         return parsed_data
 
 
@@ -280,34 +273,41 @@ class EmailVacancyParserVer0(MessageParser):
         message_parts = None
         for splitter in email_vacancy_sel_0.splitter_selectors:
             if message_parts is None:
-                message_parts = soup.find_all(splitter.tag, style=get_style_checker(splitter.attr_value))
+                message_parts = soup.find_all(splitter.tag, **attr_checker(splitter.attr_name, splitter.attr_value))
+                # message_parts = soup.find_all(splitter.tag, style=get_style_checker(splitter.attr_value))
         parsed_vacancies_data = []
         # Обработка каждой части HTML сообщения с вакансией
         for message_part in message_parts:
             parsed_data = {}
             # Извлечение позиции и URL, название позиции находится в первом теге <a>
             sel = email_vacancy_sel_0.position_url_selector
-            position_url_tag = message_part.find(sel.tag, style=get_style_checker(sel.attr_value))
+            position_url_tag = message_part.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
+            # position_url_tag = message_part.find(sel.tag, style=get_style_checker(sel.attr_value))
             if position_url_tag:
                 parsed_data[VacancyAttrs.POSITION.attr_id] = position_url_tag.get_text(strip=True)
                 # URL находится в атрибуте href
                 parsed_data[VacancyAttrs.URL.attr_id] = get_real_url(position_url_tag.get('href'))
             # Извлечение названия компании по заданному селектору
             sel = email_vacancy_sel_0.company_selector
-            company_tag = message_part.find(sel.tag, class_=get_class_checker(sel.attr_value))
+            company_tag = message_part.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
+            # company_tag = message_part.find(sel.tag, class_=get_class_checker(sel.attr_value))
             company_text = company_tag.get_text(strip=True) if company_tag else ''
             if company_text:
                 parsed_data[VacancyAttrs.COMPANY.attr_id] = junk_removal(company_text, email_vacancy_junk.company)
             # Извлечение локации компании, опыта работы, информации о зарплате,
             # которые содержатся в теге <p> с классом djinni-whois-expanded.
             sel = email_vacancy_sel_0.location_experience_salary_selector
-            location_experience_salary_tag = message_part.find(sel.tag, class_=get_class_checker(sel.attr_value))
+            location_experience_salary_tag = message_part.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
+            # location_experience_salary_tag = message_part.find(sel.tag, class_=get_class_checker(sel.attr_value))
             tag_text = location_experience_salary_tag.get_text(strip=True) if location_experience_salary_tag else ''
+            salary_text = ''
             if tag_text:
                 # Извлечение информации о зарплате, которая содержится в отдельном теге <span> внутри тега <p>
                 sel = email_vacancy_sel_0.salary_selector
-                salary_tag = location_experience_salary_tag.find(sel.tag, style=get_style_checker(sel.attr_value))
-                salary_text = salary_tag.get_text(strip=True) if salary_tag else ''
+                salary_tag = location_experience_salary_tag.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
+                # salary_tag = location_experience_salary_tag.find(sel.tag, style=get_style_checker(sel.attr_value))
+                if salary_tag:
+                    salary_text = salary_tag.get_text(strip=True)
                 if salary_text:
                     salary_min, salary_max = get_salary(salary_text)
                     if salary_min:
@@ -322,17 +322,30 @@ class EmailVacancyParserVer0(MessageParser):
                 if len(parts) >= 1:
                     experience_text = parts[0]
                 if len(parts) >= 2:
-                    parsed_data[VacancyAttrs.LOCATION.attr_id] = parts[0]
                     experience_text = parts[1]
+                    parsed_data[VacancyAttrs.LOCATION.attr_id] = parts[0]
+                if 'Український продукт' in experience_text:
+                    experience_text = parts[0]
+                    del parsed_data[VacancyAttrs.LOCATION.attr_id]
                 parsed_data[VacancyAttrs.EXPERIENCE.attr_id] = junk_removal(experience_text,
                                                                             email_vacancy_junk.experience)
+
+                pass
+
             # Извлекаем описание вакансии, которое содержится в первом теге <p> после таблицы с основными данными
             sel = email_vacancy_sel_0.job_desc_selector
-            job_desc_tag = message_part.find(sel.tag, style=get_style_checker(sel.attr_value))
+            job_desc_tag = message_part.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
+            # job_desc_tag = message_part.find(sel.tag, style=get_style_checker(sel.attr_value))
             if job_desc_tag:
                 job_desc_text = job_desc_tag.get_text(strip=True) if job_desc_tag else ''
                 parsed_data[VacancyAttrs.JOB_DESC.attr_id] = junk_removal(job_desc_text,
                                                                           email_vacancy_junk.job_desc)
+            # Подсчет успешно распарсенных полей / Counting successfully parsed fields
+            parsed_field_ids = [VacancyAttrs.POSITION.attr_id, VacancyAttrs.URL.attr_id,
+                                VacancyAttrs.COMPANY.attr_id, VacancyAttrs.SALARY_FROM.attr_id,
+                                VacancyAttrs.SALARY_TO.attr_id,
+                                VacancyAttrs.EXPERIENCE.attr_id, VacancyAttrs.JOB_DESC.attr_id]
+            parsed_data['message_parsing_error'] = get_parsing_error(parsed_data, parsed_field_ids, salary_text)
             parsed_vacancies_data.append(parsed_data)
         return parsed_vacancies_data
 
@@ -354,7 +367,7 @@ class EmailVacancyParserVer1(MessageParser):
         soup = BeautifulSoup(html, 'lxml')
         # Разделение HTML сообщения с несколькими вакансиями на отдельные части по заданному тегу и стилю
         splitter = email_vacancy_sel_1.splitter_selector
-        message_parts = soup.find_all(splitter.tag, class_=get_class_checker(splitter.attr_value))
+        message_parts = soup.find_all(splitter.tag, **attr_checker(splitter.attr_name, splitter.attr_value))
         parsed_vacancies_data = []
         # Обработка каждой части HTML сообщения с вакансией
         for message_part in message_parts:
@@ -367,6 +380,7 @@ class EmailVacancyParserVer1(MessageParser):
                 parsed_data[VacancyAttrs.URL.attr_id] = get_real_url(position_url_tag.get('href'))
             # Извлечение информации о зарплате
             salary_tag = message_part.select_one(email_vacancy_sel_1.salary_selector)
+            salary_text = ''
             if salary_tag:
                 salary_text = salary_tag.get_text(strip=True)
                 salary_min, salary_max = get_salary(salary_text)
@@ -376,17 +390,20 @@ class EmailVacancyParserVer1(MessageParser):
                     parsed_data[VacancyAttrs.SALARY_TO.attr_id] = salary_max
             # Извлечение названия компании по заданному селектору
             sel = email_vacancy_sel_1.company_div_selector
-            company_div_tag = message_part.find(sel.tag, style=get_style_checker(sel.attr_value))
+            company_div_tag = message_part.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
+            # company_div_tag = message_part.find(sel.tag, style=get_style_checker(sel.attr_value))
             if company_div_tag:
                 sel = email_vacancy_sel_1.company_span_selector
-                company_span_tag = company_div_tag.find(sel.tag, class_=get_style_checker(sel.attr_value))
+                company_span_tag = company_div_tag.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
+                # company_span_tag = company_div_tag.find(sel.tag, class_=get_style_checker(sel.attr_value))
                 if company_span_tag:
                     parsed_data[VacancyAttrs.COMPANY.attr_id] = company_span_tag.get_text(strip=True)
             # Получение деталей вакансии (опыт, английский, формат работы, локация)
             sel = email_vacancy_sel_1.experience_lingvo_worktype_location_selector
-            details_tag = message_part.find(sel.tag, class_=sel.attr_value)
+            details_tag = message_part.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
+            # details_tag = message_part.find(sel.tag, class_=sel.attr_value)
             if details_tag:
-                parts = [part.strip() for part in details_tag.get_text().split('·') if part.strip()]
+                parts = [part.strip() for part in details_tag.get_text().split('·')]
                 if parts[0]:
                     # Extracting the experience requirements / Извлечение опыта работы
                     matching = re.search(
@@ -396,9 +413,26 @@ class EmailVacancyParserVer1(MessageParser):
                                                                             str_to_numeric(matching.group(1)))
                         if matching.group(1) is None and matching.group(2) is not None:
                             parsed_data[VacancyAttrs.EXPERIENCE.attr_id] = 0
+                    if parts[0] in ["Без опыта", "без опыта", "No experience", "Без досвіду"]:
+                        parsed_data[VacancyAttrs.EXPERIENCE.attr_id] = 0
                 if parts[1]:
                     # Extracting the lingvo level / Извлечение уровня знания языка
-                    parsed_data[VacancyAttrs.LINGVO.attr_id] = junk_removal(parts[1], email_vacancy_junk.lingvo)
+                    match parts[1]:
+                        case 'Beginner / Elementary':
+                            lingvo = 'A1'
+                        case 'PreIntermediate':
+                            lingvo = 'A2'
+                        case 'Intermediate':
+                            lingvo = 'B1'
+                        case 'Advanced / Fluent':
+                            lingvo = 'C1'
+                        case 'UpperIntermediate':
+                            lingvo = 'B2'
+                        case 'No English':
+                            lingvo = ''
+                        case _:
+                            lingvo = parts[1]
+                    parsed_data[VacancyAttrs.LINGVO.attr_id] = junk_removal(lingvo, email_vacancy_junk.lingvo)
                 if parts[2]:
                     # Extracting work format / Извлечение типа работы
                     parsed_data[VacancyAttrs.WORK_TYPE.attr_id] = parts[2]
@@ -407,7 +441,8 @@ class EmailVacancyParserVer1(MessageParser):
                     parsed_data[VacancyAttrs.CANDIDATE_LOCATIONS.attr_id] = parts[3]
             # Извлекаем описание вакансии
             sel = email_vacancy_sel_1.job_desc_selector
-            job_desc_tag = message_part.find(sel.tag, style=get_style_checker(sel.attr_value))
+            job_desc_tag = message_part.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
+            # job_desc_tag = message_part.find(sel.tag, style=get_style_checker(sel.attr_value))
             if job_desc_tag:
                 job_desc_text = job_desc_tag.get_text(strip=True) if job_desc_tag else ''
                 if job_desc_text:
@@ -415,11 +450,19 @@ class EmailVacancyParserVer1(MessageParser):
                                                                               email_vacancy_junk.job_desc)
             # Извлекаем параметры подписки
             sel = email_vacancy_sel_1.subscription_selector
-            subscription_tag = message_part.find(sel.tag, class_=get_class_checker(sel.attr_value))
+            subscription_tag = message_part.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
+            # subscription_tag = message_part.find(sel.tag, class_=get_class_checker(sel.attr_value))
             if subscription_tag:
                 subscription_text = subscription_tag.get_text(strip=True)
                 parsed_data[VacancyAttrs.SUBSCRIPTION.attr_id] = junk_removal(subscription_text,
                                                                               email_vacancy_junk.subscription)
+            # Подсчет успешно распарсенных полей / Counting successfully parsed fields
+            parsed_field_ids = [VacancyAttrs.POSITION.attr_id, VacancyAttrs.URL.attr_id,
+                                VacancyAttrs.SALARY_FROM.attr_id, VacancyAttrs.SALARY_TO.attr_id,
+                                VacancyAttrs.EXPERIENCE.attr_id, VacancyAttrs.WORK_TYPE.attr_id,
+                                VacancyAttrs.CANDIDATE_LOCATIONS.attr_id, VacancyAttrs.JOB_DESC.attr_id,
+                                VacancyAttrs.SUBSCRIPTION.attr_id]
+            parsed_data['message_parsing_error'] = get_parsing_error(parsed_data, parsed_field_ids, salary_text)
             parsed_vacancies_data.append(parsed_data)
         return parsed_vacancies_data
 
@@ -446,7 +489,8 @@ def email_detect_message_type(email_html: str) -> MessageTypes:
     result = MessageTypes.EMAIL_UNKNOWN
     soup = BeautifulSoup(email_html, 'lxml')
     for vacancy_signs in email_messages_signs.vacancy:
-        if soup.find_all(vacancy_signs.tag, style=get_style_checker(vacancy_signs.attr_value)):
+        if soup.find_all(vacancy_signs.tag, **attr_checker(vacancy_signs.attr_name, vacancy_signs.attr_value)):
+            # if soup.find_all(vacancy_signs.tag, style=get_style_checker(vacancy_signs.attr_value)):
             result = MessageTypes.EMAIL_VACANCY
     return result
 
@@ -510,45 +554,103 @@ def get_real_url(mandrillapp_url: str) -> str | None:
             if inner_json_str:
                 # Извлекаем реальный URL, декодируем экранированные слэши, убираем параметры отслеживания
                 inner_json = json.loads(inner_json_str)
-                result = inner_json.get('url', '').replace('\\/', '/').split('/?', 1)[0]
+                # result = inner_json.get('url', '').replace('\\/', '/').split('/?', 1)[0]
+                result = inner_json.get('url', '').replace('\\/', '/').split('-', 1)[0]
     except (ValueError, KeyError, json.JSONDecodeError, binascii.Error) as e:
         print(f'Unable to retrieve URL from {mandrillapp_url[:100]}...: {e}')
     return result
 
 
-def get_style_checker(required_styles: list[str]):
+def attr_checker(attr_name: str, required_attrs: list[str]) -> dict:
     """
-    Создает функцию для проверки наличия заданных стилей в строке стиля в теге
+    Универсальная функция для проверки наличия заданных значений style и class в атрибутах тега.
+    Нечувствительна к регистру и порядку значений.
+    """
+    if attr_name.lower() == 'style':
+
+        def checker(value: str):
+            if not value:
+                return False
+            # Разбиваем значения в строке стиля на отдельные стили
+            styles = [stl.strip().lower() for stl in value.split(';') if stl.strip()]
+            # Проверяем, что все заданные стили есть
+            return all(req_stl in styles for req_stl in required_attrs)
+
+    elif attr_name.lower() in ('class', 'class_'):
+
+        def checker(value):
+            if not value:
+                return False
+            # class_ в виде списка, разбиваем значения на отдельные классы
+            if isinstance(value, list):
+                classes = [clss.lower() for clss in value]
+            else:
+                classes = [clss.lower() for clss in value.split()]
+            # Проверяем, что все заданные классы есть
+            return all(req_clss.lower() in classes for req_clss in required_attrs)
+
+    else:
+
+        def checker(value):
+            if not value:
+                return False
+            return all(req_val in str(value) for req_val in required_attrs)
+
+    key = 'class_' if attr_name.lower() == 'class' else attr_name
+    return {key: checker}
+
+
+def get_parsing_error(parsed_data: dict, parsed_field_ids: list, salary_text: str, ) -> str | None:
+    """
+    Подсчет успешно распарсенных полей / Counting successfully parsed fields
     """
 
-    def checker(value: str):
-        if not value:
-            return False
-        # Разбиваем значения в строке стиля на отдельные стили
-        styles = [stl.strip().lower() for stl in value.split(';') if stl.strip()]
-        # Проверяем, что все заданные стили есть
-        return all(req_stl in styles for req_stl in required_styles)
+    if salary_text.find('$') == -1:
+        parsed_field_ids.remove(VacancyAttrs.SALARY_FROM.attr_id)
+        parsed_field_ids.remove(VacancyAttrs.SALARY_TO.attr_id)
+    unsuccessfully_parsed_fields = [field for field in parsed_field_ids if parsed_data.get(field) is None]
+    error_report = None
+    if unsuccessfully_parsed_fields:
+        unsuccessfully_parsed_fields = [VacancyAttrs.get_name_by_id(attr_id) for attr_id in
+                                        unsuccessfully_parsed_fields.copy()]
+        error_report = (f'{len(unsuccessfully_parsed_fields)} | {len(parsed_field_ids)},'
+                        f' {', '.join(unsuccessfully_parsed_fields)}')
+    return error_report
 
-    return checker
 
-
-def get_class_checker(required_classes):
-    """
-    Создает функцию для проверки наличия заданных классов в строке названий классов в теге
-    """
-
-    def checker(value):
-        if not value:
-            return False
-        # class_ в BS приходит как список
-        if isinstance(value, list):
-            classes = [clss.lower() for clss in value]
-        else:
-            classes = [clss.lower() for clss in value.split()]
-        # Проверяем, что все заданные классы есть
-        return all(req_clss.lower() in classes for req_clss in required_classes)
-
-    return checker
+# def get_style_checker(required_styles: list[str]):
+#     """
+#     Создает функцию для проверки наличия заданных стилей в строке стиля в теге
+#     """
+#
+#     def checker(value: str):
+#         if not value:
+#             return False
+#         # Разбиваем значения в строке стиля на отдельные стили
+#         styles = [stl.strip().lower() for stl in value.split(';') if stl.strip()]
+#         # Проверяем, что все заданные стили есть
+#         return all(req_stl in styles for req_stl in required_styles)
+#
+#     return checker
+#
+#
+# def get_class_checker(required_classes: list[str]):
+#     """
+#     Создает функцию для проверки наличия заданных классов в строке названий классов в теге
+#     """
+#
+#     def checker(value):
+#         if not value:
+#             return False
+#         # class_ в виде списка, разбиваем значения на отдельные классы
+#         if isinstance(value, list):
+#             classes = [clss.lower() for clss in value]
+#         else:
+#             classes = [clss.lower() for clss in value.split()]
+#         # Проверяем, что все заданные классы есть
+#         return all(req_clss.lower() in classes for req_clss in required_classes)
+#
+#     return checker
 
 
 if __name__ == '__main__':

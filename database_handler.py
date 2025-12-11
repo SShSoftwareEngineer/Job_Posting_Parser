@@ -66,7 +66,7 @@ class RawMessage(Base):  # pylint: disable=too-few-public-methods
     email_uid: Mapped[Optional[int]] = mapped_column(Integer, unique=True, nullable=True)
     text: Mapped[str] = mapped_column(Text, nullable=True)
     html: Mapped[str] = mapped_column(Text, nullable=True)
-    parsing_error: Mapped[str] = mapped_column(String, nullable=True)
+    raw_parsing_error: Mapped[str] = mapped_column(String, nullable=True)
     # Relationships to 'Vacancy' table
     vacancy: Mapped[List['Vacancy']] = relationship(back_populates='raw_message', cascade='all, delete-orphan')
     # Relationships to 'Statistic' table
@@ -123,9 +123,8 @@ class Vacancy(Base):
     # Hash параметров как идентификатор вакансии
     data_hash: Mapped[str] = mapped_column(String, nullable=True)
     # Service parameters used for parsing debugging / Служебные параметры, используемые при отладке парсинга
-    text_parsing_error: Mapped[str] = mapped_column(String, nullable=True)
-    email_parsing_error: Mapped[str] = mapped_column(String, nullable=True)
-    html_parsing_error: Mapped[str] = mapped_column(String, nullable=True)
+    message_parsing_error: Mapped[str] = mapped_column(String, nullable=True)
+    web_parsing_error: Mapped[str] = mapped_column(String, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     temp_card: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     # Relationships to 'RawMessage' table
@@ -319,7 +318,7 @@ class Statistic(Base):  # pylint: disable=too-few-public-methods
     responses_to_vacancies: Mapped[int] = mapped_column(Integer, nullable=True)
     vacancies_per_week: Mapped[int] = mapped_column(Integer, nullable=True)
     candidates_per_week: Mapped[int] = mapped_column(Integer, nullable=True)
-    parsing_error: Mapped[str] = mapped_column(String, nullable=True)
+    stat_parsing_error: Mapped[str] = mapped_column(String, nullable=True)
     # Relationships to 'RawMessage' table
     raw_message_id: Mapped[int] = mapped_column(Integer,
                                                 ForeignKey(f'{TableNames.RAW_MESSAGES.value}.id', ondelete='CASCADE'),
@@ -354,12 +353,10 @@ class VacancyWeb(Base):
     __tablename__ = TableNames.VACANCY_WEB.value  # Table name in the database / Имя таблицы в базе данных
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     url: Mapped[str] = mapped_column(String, nullable=False)
-    redirect_url: Mapped[str] = mapped_column(String, nullable=True)
     raw_html: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     last_check: Mapped[Optional[datetime]]
     status_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     attempts: Mapped[int] = mapped_column(Integer, default=0)
-    parsing_error: Mapped[str] = mapped_column(String, nullable=True)
     # Relationships to 'Vacancy' table
     vacancy_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.VACANCIES.value}.id',
                                                                 ondelete='CASCADE'), nullable=True, index=True)
@@ -407,11 +404,6 @@ class VacancyAttribute(Base):
 ModelType = TypeVar('ModelType', bound=Base)
 
 
-# def get_vacancy_attr(attr: str) -> str:
-#     """
-#     Пользовательская функция для обработки параметра вакансии при получении его из разных источников
-#     """
-#     return ' '.join([attr, '1'])
 
 
 class DatabaseHandler:
