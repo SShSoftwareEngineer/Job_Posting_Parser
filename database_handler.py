@@ -111,7 +111,7 @@ class Vacancy(Base):
         main_tech (Mapped[str]): the main technology of the project
         tech_stack (Mapped[str]): technology stack
         lingvo (Mapped[str]): english language requirements
-        work_type (Mapped[str]): work type (office, remote etc.)
+        employment (Mapped[str]): work type (office, remote etc.)
         candidate_locations (Mapped[str]): candidate locations under consideration
         company_type (Mapped[str]): company type (outsource, outstaff, product etc.)
         offices (Mapped[str]): company offices locations
@@ -142,19 +142,7 @@ class Vacancy(Base):
     #     Initialization of the VacancyMessage object. Parsing the message text and HTML code of the job vacancy page
     #     Инициализация объекта VacancyMessage. Парсинг текста сообщения и HTML-кода страницы вакансии
     #     """
-    #     super().__init__(**kw)
-    #     vacancy_text_signs = config.message_configs.vacancy.text_parsing_signs
-    #     vacancy_html_signs = config.message_configs.vacancy.html_parsing_signs
 
-    #     # Parsing job posting information from the HTML code of the job posting page on the website
-    #     # Парсинг информации о вакансии из HTML-кода страницы вакансии на сайте
-    #     self._vacancy_html_parsing(vacancy_html_signs)
-    #     for key, value in vars(self).items():
-    #         if value == "":
-    #             setattr(self, key, None)
-    #     # Validating the parsing results of all fields and setting the job vacancy parsing status
-    #     # Проверка результатов парсинга всех полей и установка статуса парсинга вакансии
-    #     self._set_parsing_status()
 
     #
     # def _is_vacancy_html_error(self) -> bool:
@@ -198,6 +186,7 @@ class Vacancy(Base):
     #     # Получаем заголовок вакансии
     #     if soup.find('h1').find('span'):
     #         self.position_web = html_to_text(str(soup.find('h1').find('span')))
+
     #     # Retrieving the job description
     #     # Получаем описание вакансии
     #     if soup.find('div', class_=patterns.html_classes.description):
@@ -228,8 +217,8 @@ class Vacancy(Base):
     #                 if re.search(f"{'|'.join(patterns.experience)}", add_info):
     #                     self.experience_web = add_info
     #                     additional_info[i] = ''
-    #                 if re.search(f"{'|'.join(patterns.work_type)}", add_info):
-    #                     self.work_type = add_info
+    #                 if re.search(f"{'|'.join(patterns.employment)}", add_info):
+    #                     self.employment = add_info
     #                     additional_info[i] = ''
     #                 if re.search(f"{'|'.join(patterns.candidate_locations)}", add_info):
     #                     self.candidate_locations = add_info.split('\n')[0]
@@ -284,7 +273,7 @@ class Vacancy(Base):
     #     # Validating the parsing results for the fields from the HTML code of the job vacancy page on the website
     #     # Проверка результатов парсинга полей из HTML-кода страницы вакансии на сайте
     #     counted_html_fields = [self.position_web, self.description, self.lingvo, self.experience_web,
-    #                            self.work_type, self.candidate_locations, self.main_tech, self.tech_stack,
+    #                            self.employment, self.candidate_locations, self.main_tech, self.tech_stack,
     #                            self.domain, self.company_type]
     #     parsing_html_status = 'OK'
     #     if not self._is_vacancy_html_error():
@@ -356,7 +345,6 @@ class VacancyWeb(Base):
     raw_html: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     last_check: Mapped[Optional[datetime]]
     status_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    attempts: Mapped[int] = mapped_column(Integer, default=0)
     # Relationships to 'Vacancy' table
     vacancy_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.VACANCIES.value}.id',
                                                                 ondelete='CASCADE'), nullable=True, index=True)

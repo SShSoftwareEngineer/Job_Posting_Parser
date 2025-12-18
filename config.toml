@@ -81,7 +81,7 @@ location_experience_salary_selector = { tag = "p", attr_name = "class", attr_val
 # Селектор зарплаты
 salary_selector = { tag = "span", attr_name = "style", attr_value = ["color:#4cae4c"] }
 # Селектор описания вакансии
-job_desc_selector = { tag = "p", attr_name = "style", attr_value = ["margin:5px 0", "color:#333"] }
+job_desc_prev_selector = { tag = "p", attr_name = "style", attr_value = ["margin:5px 0", "color:#333"] }
 # Разделитель по селекторам между несколькими вакансиями в одном сообщении
 [[email_vacancy_sel_0.splitter_selectors]]
 tag = "td"
@@ -103,12 +103,12 @@ company_span_selector = { tag = "span", attr_name = "class", attr_value = ["deta
 # Селектор опыта, знания языка, типа работы, локации соискателей
 experience_lingvo_worktype_location_selector = { tag = "td", attr_name = "class", attr_value = ["details"] }
 # Селектор описания вакансии
-job_desc_selector = { tag = "p", attr_name = "style", attr_value = ["margin:0", "line-height:1.5"] }
+job_desc_prev_selector = { tag = "p", attr_name = "style", attr_value = ["margin:0", "line-height:1.5"] }
 # Селектор подписки
 subscription_selector = { tag = "div", attr_name = "class", attr_value = ["djinni-whois-expanded"] }
 
 
-# Мусорные фрагменты текста для удаления из параметров вакансий, class EmailVacancyJunk
+# Мусорные фрагменты текста для удаления из параметров вакансий из Email, class EmailVacancyJunk
 [email_vacancy_junk]
 # Удаление лишних подстрок из позиции и компании
 company = ["в ", "at "]
@@ -119,6 +119,40 @@ experience = ["год опыта", "года опыта", "лет опыта",
     "рік досвіду", "роки досвіду", "років досвіду", ]
 lingvo = ["-", "–", "Немає", "Початківець", "Елементарний", "Середній", "Вище середнього", "Просунутий", "Вільний"]
 # Удаление лишних подстрок из опиасания вакансии
-job_desc = ["Подробнее", "Детальніше", "…"]
+job_desc_prev = ["Подробнее", "Детальніше", "…"]
+# Удаление лишних подстрок из названия подписки на рассылку
+subscription = ["Subscription:", "Подписка:", "Підписка:"]
+
+
+# Селекторы для определения параметров вакансии из объявления на сайте, class WebVacancySel
+[web_vacancy_sel]
+# Селектор позиции
+position_selector = "h1 span"
+# Селектор названия компании
+company_selector = "div.fs-5 div.col"
+# Селектор описания вакансии
+job_desc_selector = { tag = "div", attr_name = "class", attr_value = ["job-post__description"] }
+# Селектор URL
+url_selector = { tag = "link", attr_name = "rel", attr_value = ["canonical"] }
+# Селектор основной технологии
+main_tech_selector = { tag = "div", attr_name = "class", attr_value = ["fw-medium"] }
+# Селектор дополнительных навыков
+more_tech_stack_selector = { tag = "link", attr_name = "rel", attr_value = ["canonical"] }
+# Селектор job card
+job_card_selector = { tag = "div", attr_name = "class", attr_value = ["card", "card-body"] }
+
+
+# Мусорные фрагменты текста для удаления из параметров вакансий с сайта, class WebVacancyJunk
+[web_vacancy_junk]
+# Удаление лишних подстрок из позиции и компании
+company = ["в ", "at "]
+# Удаление лишних подстрок из локации и опыта соискателя
+experience = ["год опыта", "года опыта", "лет опыта",
+    "Без опыта", "без опыта", "No experience", "Без досвіду",
+    "year of experience", "years of experience", "years",
+    "рік досвіду", "роки досвіду", "років досвіду", ]
+lingvo = ["-", "–", "Немає", "Початківець", "Елементарний", "Середній", "Вище середнього", "Просунутий", "Вільний"]
+# Удаление лишних подстрок из опиасания вакансии
+job_desc_prev = ["Подробнее", "Детальніше", "…"]
 # Удаление лишних подстрок из названия подписки на рассылку
 subscription = ["Subscription:", "Подписка:", "Підписка:"]

@@ -41,23 +41,26 @@ def str_to_numeric(value: str | None) -> int | float | None:
     return result
 
 
-def html_to_text(html: str) -> str:
+def html_to_text(html_str: str | None) -> str | None:
     """
     Convert HTML text to plain text
     Преобразование HTML-текста в обычный текст
     """
     # Replacing '\n' sequences with spaces.
     # Заменяем последовательности '\n' на пробелы
-    text = re.sub(r'\n+', ' ', html)
-    # Replacing tags <p>, <div> with '\n'
-    # Заменяем теги <p>, <div> на '\n'
-    text = re.sub(r'</?(p|div)[^>]*>', '\n', text)
+    text = re.sub(r'\n+', ' ', html_str)
+    # Replacing tags <p>, <div>, <li>, <hN> with '\n'
+    # Заменяем теги <p>, <div>, <li>, <hN> на '\n'
+    text = re.sub(r'</?(p|div|li|h\d)[^>]*>', '\n', text, flags=re.IGNORECASE)
     # Replacing tag <br> with '\n'
     # Заменяем тег <br> на '\n'
-    text = re.sub(r'<br\s*/?>', '\n', text)
+    text = re.sub(r'<br\s*/?>', '\n', text, flags=re.IGNORECASE)
     # Remove all remaining HTML tags
     # Удаляем все оставшиеся HTML теги
     text = re.sub(r'<[^>]+>', '', text)
+    # Replace multiple spaces and tab characters within lines with a single space
+    # Заменяем множественные пробелы и символы табуляции внутри строк на один пробел
+    text = re.sub(r'[ \t]+', ' ', text)
     # Removing extra spaces and empty lines
     # Убираем лишние пробелы и пустые строки
     text = re.sub(r'\n+', '\n', text).strip()
@@ -66,7 +69,7 @@ def html_to_text(html: str) -> str:
     text = re.sub(r'^\s+|\s+$', '', text, flags=re.MULTILINE)
     # Removing extra spaces in lines
     # Удаляем лишние пробелы в строках
-    text = re.sub(r' +', ' ', text)
+    text = re.sub(r' +', ' ', text).strip()
     return text
 
 

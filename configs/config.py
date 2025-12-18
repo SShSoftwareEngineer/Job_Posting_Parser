@@ -12,6 +12,7 @@ class GlobalConst:
     parse_config_file = 'configs/config.json'  # Configuration data file in JSON format / Имя файла конфигурации в формате JSON
     timeout_seconds = 10  # Timeout for HTTP requests in seconds / Таймаут для HTTP запросов в секундах
     max_concurrent_requests = 10  # Maximum number of concurrent HTTP requests / Максимальное количество одновременных HTTP запросов
+    user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'  # User-Agent for HTTP requests / User-Agent для HTTP запросов
 
 
 class MessageSources(Enum):
@@ -137,15 +138,17 @@ class VacancyAttrs(Enum):
     LINGVO = 6, 'string'
     SALARY_FROM = 7, 'integer'
     SALARY_TO = 8, 'integer'
-    JOB_DESC = 9, 'string'
+    JOB_DESC_PREV = 9, 'string'
     COMPANY = 10, 'string'
     COMPANY_TYPE = 11, 'string'
     DOMAIN = 12, 'string'
     OFFICES = 13, 'string'
-    WORK_TYPE = 14, 'string'
+    EMPLOYMENT = 14, 'string'
     CANDIDATE_LOCATIONS = 15, 'string'
     SUBSCRIPTION = 16, 'string'
     URL = 17, 'string'
+    JOB_DESC = 18, 'string'
+    NOTES = 19, 'string'
 
     def __init__(self, attr_id: int, attr_type: str):
         """

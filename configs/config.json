@@ -87,7 +87,7 @@
           "years of experience",
           "No experience"
         ],
-        "work_type": [
+        "employment": [
           "Офіс",
           "офіс",
           "віддалено",
@@ -184,7 +184,7 @@
         "vacancies.main_tech": "Main Technology",
         "vacancies.tech_stack": "Tech Stack",
         "vacancies.lingvo": "Lingvo",
-        "vacancies.work_type": "Work Type",
+        "vacancies.employment": "Work Type",
         "vacancies.candidate_locations": "Candidate Locations",
         "vacancies.min_salary": "Min Salary",
         "vacancies.max_salary": "Max Salary",

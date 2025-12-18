@@ -103,7 +103,7 @@ class EmailVacancySelVer0(BaseModel):
     company_selector: Selector
     location_experience_salary_selector: Selector
     salary_selector: Selector
-    job_desc_selector: Selector
+    job_desc_prev_selector: Selector
     splitter_selectors: list[Selector]
 
 
@@ -121,7 +121,7 @@ class EmailVacancySelVer1(BaseModel):
     company_div_selector: Selector
     company_span_selector: Selector
     experience_lingvo_worktype_location_selector: Selector
-    job_desc_selector: Selector
+    job_desc_prev_selector: Selector
     subscription_selector: Selector
 
 
@@ -136,7 +136,7 @@ class EmailVacancyJunk(BaseModel):
     company: list[str]
     experience: list[str]
     lingvo: list[str]
-    job_desc: list[str]
+    job_desc_prev: list[str]
     subscription: list[str]
 
 
@@ -145,6 +145,38 @@ try:
     email_vacancy_junk = EmailVacancyJunk(**config_toml.get('email_vacancy_junk', {}))
 except ValidationError as err:
     print(f'Error in [email_vacancy_junk] section: {err}')
+
+
+
+class WebVacancySel(BaseModel):
+    position_selector: str
+    company_selector: str
+    job_desc_selector: Selector
+    url_selector: Selector
+    main_tech_selector: Selector
+    more_tech_stack_selector: Selector
+    job_card_selector: Selector
+
+web_vacancy_sel = None
+try:
+    web_vacancy_sel = WebVacancySel(**config_toml.get('web_vacancy_sel', {}))
+except ValidationError as err:
+    print(f'Error in [web_vacancy_sel] section: {err}')
+
+
+class WebVacancyJunk(BaseModel):
+    company: list[str]
+    experience: list[str]
+    lingvo: list[str]
+    job_desc_prev: list[str]
+    subscription: list[str]
+
+
+web_vacancy_junk = None
+try:
+    web_vacancy_junk = WebVacancyJunk(**config_toml.get('web_vacancy_junk', {}))
+except ValidationError as err:
+    print(f'Error in [web_vacancy_junk] section: {err}')
 
 pass
 
@@ -273,7 +305,7 @@ class HtmlParsingSigns(BaseModel):
     lingvo: list[str]
     experience: list[str]
     candidate_locations: list[str]
-    work_type: list[str]
+    employment: list[str]
     domain: list[str]
     company_type: list[str]
     offices: list[str]
