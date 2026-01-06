@@ -132,20 +132,22 @@ except ValidationError as err:
     print(f'Error in [email_vacancy_sel_1] section: {err}')
 
 
-class EmailVacancyJunk(BaseModel):
-    company: list[str]
-    experience: list[str]
-    lingvo: list[str]
-    job_desc_prev: list[str]
-    subscription: list[str]
+class Repls(BaseModel):
+    repl: list[dict[str, list[str]]] = []  # replacement patterns
+    remove: list[str] = []  # remove patterns
 
 
-email_vacancy_junk = None
+class EmailVacancyRepls(BaseModel):
+    pos_comp: Repls
+    job_desc_prev: Repls
+    subscription: Repls
+
+
+email_vacancy_repls = None
 try:
-    email_vacancy_junk = EmailVacancyJunk(**config_toml.get('email_vacancy_junk', {}))
+    email_vacancy_repls = EmailVacancyRepls(**config_toml.get('email_vacancy_repls', {}))
 except ValidationError as err:
-    print(f'Error in [email_vacancy_junk] section: {err}')
-
+    print(f'Error in [email_vacancy_repls] section: {err}')
 
 
 class WebVacancySel(BaseModel):
@@ -153,9 +155,11 @@ class WebVacancySel(BaseModel):
     company_selector: str
     job_desc_selector: Selector
     url_selector: Selector
-    main_tech_selector: Selector
+    main_tech_selector: str
     more_tech_stack_selector: Selector
-    job_card_selector: Selector
+    second_tech_stack_selector: str
+    job_card_selector: str
+
 
 web_vacancy_sel = None
 try:
@@ -164,24 +168,25 @@ except ValidationError as err:
     print(f'Error in [web_vacancy_sel] section: {err}')
 
 
-class WebVacancyJunk(BaseModel):
-    company: list[str]
-    experience: list[str]
-    lingvo: list[str]
-    job_desc_prev: list[str]
-    subscription: list[str]
+class WebVacancyRepls(BaseModel):
+    experience: Repls
+    lingvo: Repls
+    employment: Repls
+    domain: Repls
+    company_type: Repls
+    offices: Repls
+    candidate_locations: Repls
+    notes: Repls
 
 
-web_vacancy_junk = None
+web_vacancy_repls = None
 try:
-    web_vacancy_junk = WebVacancyJunk(**config_toml.get('web_vacancy_junk', {}))
+    web_vacancy_repls = WebVacancyRepls(**config_toml.get('web_vacancy_repls', {}))
 except ValidationError as err:
-    print(f'Error in [web_vacancy_junk] section: {err}')
+    print(f'Error in [web_vacancy_repls] section: {err}')
 
 pass
 
-
-# -----------------------------------------------------------------------------------------------------------
 
 def resolve_patterns():
     """

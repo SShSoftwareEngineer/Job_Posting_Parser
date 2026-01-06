@@ -28,7 +28,7 @@ def str_to_numeric(value: str | None) -> int | float | None:
     Безопасное преобразование строки в числовое значение (int или float)
     """
     result = None
-    if value is not None:
+    if value:
         try:
             if "." in value or "," in value:
                 result = float(value.replace(",", "."))

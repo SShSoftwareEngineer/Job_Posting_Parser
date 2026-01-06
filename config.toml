@@ -15,6 +15,7 @@ tg_service = ["Активные подписки", "Active Subscriptions",
     "/add", "/delete all", "/howmuch", "/help", "/list", "/login", "/pause", "/start",
     "/subscriptions", "/salaries", "/tips_on", "/unpause"]
 
+
 # Сигнатуры для определения параметров вакансии из текста вакансий Telegram, class TgVacancyTextSigns
 [tg_vacancy_text_signs]
 # Определение позиции и компании
@@ -45,15 +46,16 @@ vacancies_per_week = ["Вакансій", "Вакансий", "Jobs"]
 candidates_per_week = ["Кандидатів", "Кандидатов", "Candidates"]
 
 # regex_patterns, class RegexPatterns
+# Одиночные кавычки в TOML файле лучше применять только для регулярных выражений, это аналог r-строк в Python
 [regex_patterns]
 # URL вакансии на сайте Djinni
-url = "https?:\\/\\/djinni.co\\/.*"
+url = 'https?:\/\/djinni.co\/.*'
 # Числовой шаблон
-numeric = "([-+]?(?:\\d*[.,]\\d+|\\d+))"
+numeric = '([-+]?(?:\d*[.,]\d+|\d+))'
 # Числовой шаблон для зарплаты
-salary = "\\$?{numeric_pattern}"
+salary = '\$?{numeric_pattern}'
 # Числовой шаблон для диапазона зарплаты
-salary_range = "\\$?{numeric_pattern}-{numeric_pattern}"
+salary_range = '\$?{numeric_pattern}-{numeric_pattern}'
 
 
 # Селекторы для распознавания типов Email сообщений, class EmailMessagesSigns
@@ -108,20 +110,17 @@ job_desc_prev_selector = { tag = "p", attr_name = "style", attr_value = ["margin
 subscription_selector = { tag = "div", attr_name = "class", attr_value = ["djinni-whois-expanded"] }
 
 
-# Мусорные фрагменты текста для удаления из параметров вакансий из Email, class EmailVacancyJunk
-[email_vacancy_junk]
+# Фрагменты текста для замены и удаления из параметров вакансий из Email, class EmailVacancyRepls
+[email_vacancy_repls]
 # Удаление лишних подстрок из позиции и компании
-company = ["в ", "at "]
-# Удаление лишних подстрок из локации и опыта соискателя
-experience = ["год опыта", "года опыта", "лет опыта",
-    "Без опыта", "без опыта", "No experience", "Без досвіду",
-    "year of experience", "years of experience", "years",
-    "рік досвіду", "роки досвіду", "років досвіду", ]
-lingvo = ["-", "–", "Немає", "Початківець", "Елементарний", "Середній", "Вище середнього", "Просунутий", "Вільний"]
-# Удаление лишних подстрок из опиасания вакансии
-job_desc_prev = ["Подробнее", "Детальніше", "…"]
+[email_vacancy_repls.pos_comp]
+remove = ["в ", "at "]
+# Удаление лишних подстрок из описания вакансии
+[email_vacancy_repls.job_desc_prev]
+remove = ["Подробнее", "Детальніше", "Read more", "…"]
 # Удаление лишних подстрок из названия подписки на рассылку
-subscription = ["Subscription:", "Подписка:", "Підписка:"]
+[email_vacancy_repls.subscription]
+remove = ["Subscription:", "Подписка:", "Підписка:"]
 
 
 # Селекторы для определения параметров вакансии из объявления на сайте, class WebVacancySel
@@ -135,24 +134,63 @@ job_desc_selector = { tag = "div", attr_name = "class", attr_value = ["job-post_
 # Селектор URL
 url_selector = { tag = "link", attr_name = "rel", attr_value = ["canonical"] }
 # Селектор основной технологии
-main_tech_selector = { tag = "div", attr_name = "class", attr_value = ["fw-medium"] }
+main_tech_selector = "div.col div.fw-medium"
 # Селектор дополнительных навыков
 more_tech_stack_selector = { tag = "link", attr_name = "rel", attr_value = ["canonical"] }
+# Селектор вторичных дополнительных навыков
+second_tech_stack_selector = "div.text-secondary div.col"
 # Селектор job card
-job_card_selector = { tag = "div", attr_name = "class", attr_value = ["card", "card-body"] }
+job_card_selector = "aside div.card.card-body"
 
 
-# Мусорные фрагменты текста для удаления из параметров вакансий с сайта, class WebVacancyJunk
-[web_vacancy_junk]
-# Удаление лишних подстрок из позиции и компании
-company = ["в ", "at "]
-# Удаление лишних подстрок из локации и опыта соискателя
-experience = ["год опыта", "года опыта", "лет опыта",
+# Мусорные фрагменты текста для удаления из параметров вакансий с сайта, class WebVacancyRepls
+[web_vacancy_repls]
+# Замена или удаление лишних подстрок из опыта соискателя
+[web_vacancy_repls.experience]
+repl = [{ "0" = ["Без опыта", "без опыта", "No experience", "Без досвіду"] }]
+remove = ["Only from", "Considering with", "Виключно від",
+    "год опыта", "года опыта", "лет опыта",
     "Без опыта", "без опыта", "No experience", "Без досвіду",
     "year of experience", "years of experience", "years",
-    "рік досвіду", "роки досвіду", "років досвіду", ]
-lingvo = ["-", "–", "Немає", "Початківець", "Елементарний", "Середній", "Вище середнього", "Просунутий", "Вільний"]
-# Удаление лишних подстрок из опиасания вакансии
-job_desc_prev = ["Подробнее", "Детальніше", "…"]
-# Удаление лишних подстрок из названия подписки на рассылку
-subscription = ["Subscription:", "Подписка:", "Підписка:"]
+    "рік досвіду", "роки досвіду", "років досвіду"]
+# Замена или удаление лишних подстрок из уровня знания языков соискателя
+[web_vacancy_repls.lingvo]
+repl = [{ "A1" = ["English A1 - Beginner", "Beginner", "Beginner/Elementary", "Beginner / Elementary",
+    "Англійська A1 - Початківець", "Англійська: A1 - Початківець"] },
+    { "A2" = ["English A2 - Elementary", "English Pre-Intermediate", "Elementary", "PreIntermediate",
+        "Pre-Intermediate", "Англійська A2 - Елементарний", "Англійська: A2 - Елементарний"] },
+    { "B1" = ["English B1 - Intermediate", "Intermediate", "English Intermediate", "Англійська B1 – Середній",
+        "Англійська: B1 – Середній"] },
+    { "B2" = ["English B2 - Upper Intermediate", "English Upper-Intermediate", "Upper Intermediate", "UpperIntermediate",
+        "Upper-Intermediate", "Англійська B2 – Вище середнього", "Англійська: B2 – Вище середнього"] },
+    { "C1" = ["English C1 - Advanced", "Advanced/Fluent", "Advanced / Fluent", "Advanced", "Fluent",
+        "Англійська C1 – Просунутий", "Англійська: C1 – Просунутий"] },
+    { "C2" = ["English C2 - Proficient", "Proficient", "Native", "English Native", "Носій мови"] }, ]
+remove = ["Upper Intermediate", "Upper-Intermediate", "Вище середнього", "English None", "Елементарний", "Intermediate",
+    "Початківець", "Pre-Intermediate", "PreIntermediate", "Просунутий", "Elementary", "Proficient", "No English",
+    "Середній", "Beginner", "Advanced", "Вільний", "Немає", "-", "–", ]
+# Замена или удаление лишних подстрок из специфики работы
+[web_vacancy_repls.employment]
+repl = [{ "Full Remote" = ["Тільки віддалено"] }, { "Office, Remote" = ["Office or Remote", "Офіс або віддалено"] },
+    { "Office" = ["Office Work", "Тільки офіс"] }, { "Part-time" = ["Неповна / Парт-тайм"] },
+    { "Hybrid Remote" = ["Гібридний формат роботи", "В офісі та віддалено"] }]
+remove = ["Employment:", "Зайнятість:"]
+# Замена или удаление лишних подстрок из домена компании
+[web_vacancy_repls.domain]
+remove = ["Domain:", "Домен:"]
+# Замена или удаление лишних подстрок из типа компании
+[web_vacancy_repls.company_type]
+repl = [{ "Product" = ["Продукт"] }, { "Outsource/Outstaff Agency" = ["Agency"] }, { "Outsource" = ["Аутсорс"] },
+    { "Outstaff" = ["Аутстаф"] }, { "Startup" = ["Стартап"] }]
+# Замена или удаление лишних подстрок из местонахождения офисов компании
+[web_vacancy_repls.offices]
+remove = ["Офіс:", "Office:"]
+# Замена или удаление лишних подстрок из локации кандидатов
+[web_vacancy_repls.candidate_locations]
+repl = [{ "Ukraine" = ["Україна"] }, { "Countries of Europe or Ukraine" = ["Країни Європи та Україна"] },
+    { "EU" = ["Країни ЄС", "Країни Європи крім України"] }, { "Worldwide" = ["Весь світ"] }, { "Poland" = ["Польща"] },
+    { "United States" = ["Сполучені Штати"] }, { "Portugal" = ["Португалія"] }, { "Cyprus" = ["Кіпр"] },
+    { "Canada" = ["Канада"] }, ]
+# Замена или удаление лишних подстрок из заметок
+[web_vacancy_repls.notes]
+repl = [{ "Required knowledge of Ukrainian" = ["Ukrainian: Native", "Українська: Носій мови"] }]

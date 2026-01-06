@@ -18,7 +18,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, Type, TypeVar, List
 import pandas as pd
-from sqlalchemy import create_engine, Integer, ForeignKey, Text, String, event, Engine, Table, Column
+from sqlalchemy import create_engine, Integer, ForeignKey, Text, String, event, Engine, Table, Column, inspect
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, Session
 from config_handler import config
 from configs.config import GlobalConst, TableNames, MessageSources, MessageTypes, VacancyAttrs
@@ -93,6 +93,7 @@ class VacancyData(Base):
     __tablename__ = TableNames.VACANCY_DATA.value  # Table name in the database / Имя таблицы в базе данных
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     attr_value: Mapped[str] = mapped_column(String, nullable=False)
+    attr_source_id: Mapped[int] = mapped_column(Integer)
     # Relationships to 'VacancyAttribute' table
     attr_name_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.VACANCY_ATTRS.value}.id'), index=True)
     attr_name: Mapped['VacancyAttribute'] = relationship(back_populates='vacancy_attr')
@@ -125,8 +126,6 @@ class Vacancy(Base):
     # Service parameters used for parsing debugging / Служебные параметры, используемые при отладке парсинга
     message_parsing_error: Mapped[str] = mapped_column(String, nullable=True)
     web_parsing_error: Mapped[str] = mapped_column(String, nullable=True)
-    notes: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    temp_card: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     # Relationships to 'RawMessage' table
     raw_message_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.RAW_MESSAGES.value}.id'), index=True,
                                                 nullable=True)
@@ -142,7 +141,6 @@ class Vacancy(Base):
     #     Initialization of the VacancyMessage object. Parsing the message text and HTML code of the job vacancy page
     #     Инициализация объекта VacancyMessage. Парсинг текста сообщения и HTML-кода страницы вакансии
     #     """
-
 
     #
     # def _is_vacancy_html_error(self) -> bool:
@@ -345,6 +343,7 @@ class VacancyWeb(Base):
     raw_html: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     last_check: Mapped[Optional[datetime]]
     status_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    parsing_date: Mapped[Optional[datetime]]
     # Relationships to 'Vacancy' table
     vacancy_id: Mapped[int] = mapped_column(Integer, ForeignKey(f'{TableNames.VACANCIES.value}.id',
                                                                 ondelete='CASCADE'), nullable=True, index=True)
@@ -390,8 +389,6 @@ class VacancyAttribute(Base):
 
 # TypeVar for model classes, bound to Base
 ModelType = TypeVar('ModelType', bound=Base)
-
-
 
 
 class DatabaseHandler:

@@ -4,6 +4,7 @@ import json
 import re
 import urllib.parse
 from abc import ABC, abstractmethod
+from collections import ChainMap
 from email import message_from_bytes, policy
 from email.message import EmailMessage
 from typing import cast
@@ -12,7 +13,8 @@ from bs4 import BeautifulSoup
 from telethon.tl.types import Message
 
 from config_handler import tg_vacancy_text_signs, regex_patterns, tg_statistic_text_signs, tg_messages_signs, \
-    email_messages_signs, email_vacancy_sel_0, email_vacancy_junk, email_vacancy_sel_1, web_vacancy_sel
+    email_messages_signs, email_vacancy_sel_0, email_vacancy_sel_1, web_vacancy_sel, Repls, \
+    email_vacancy_repls, web_vacancy_repls
 from configs.config import MessageSources, MessageTypes, VacancyAttrs
 from email_handler import decode_email_field
 from utils import str_to_numeric, parse_date_string, html_to_text
@@ -86,9 +88,11 @@ class TgVacancyParser(MessageParser):
         Функция для парсинга списка сообщений Telegram с вакансиями, возвращает список словарей с результатами парсинга
         """
 
+        parsed_vacancies_data = []
+        if not text:
+            return parsed_vacancies_data
         # Разделение текста сообщения Telegram с несколькими вакансиями на отдельные части по двойным переносам строк
         message_parts = self.vacancy_split(text)
-        parsed_vacancies_data = []
         # Обработка каждой части текста сообщения
         for message_part in message_parts:
             parsed_data = {}
@@ -169,9 +173,9 @@ class TgStatisticParser(MessageParser):
         Функция парсинга сообщений Telegram со статистикой, возвращает словарь с результатами парсинга
         """
 
+        if not text:
+            return {}
         # Extracting numerical values / Извлечение числовых значений
-        if text.find('Jobs for 30 days') != -1:
-            pass
         parsed_data = {'vacancies_in_30d': self.set_numeric_attr(text, tg_statistic_text_signs.vacancies_in_30d),
                        'candidates_online': self.set_numeric_attr(text, tg_statistic_text_signs.candidates_online),
                        'responses_to_vacancies': self.set_numeric_attr(text,
@@ -266,6 +270,9 @@ class EmailVacancyParserVer0(MessageParser):
         Функция для парсинга HTML содержимого сообщений Email с вакансиями, возвращает словарь с результатами парсинга
         """
 
+        parsed_vacancies_data = []
+        if not html:
+            return parsed_vacancies_data
         # Create a BeautifulSoup object for parsing the HTML page with the job posting text
         # Создаем объект BeautifulSoup для парсинга HTML-страницы с текстом вакансии
         soup = BeautifulSoup(html, 'lxml')
@@ -274,38 +281,31 @@ class EmailVacancyParserVer0(MessageParser):
         for splitter in email_vacancy_sel_0.splitter_selectors:
             if message_parts is None:
                 message_parts = soup.find_all(splitter.tag, **attr_checker(splitter.attr_name, splitter.attr_value))
-                # message_parts = soup.find_all(splitter.tag, style=get_style_checker(splitter.attr_value))
-        parsed_vacancies_data = []
         # Обработка каждой части HTML сообщения с вакансией
         for message_part in message_parts:
             parsed_data = {}
-            # Извлечение позиции и URL, название позиции находится в первом теге <a>
+            # Извлечение позиции и URL
             sel = email_vacancy_sel_0.position_url_selector
             position_url_tag = message_part.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
-            # position_url_tag = message_part.find(sel.tag, style=get_style_checker(sel.attr_value))
             if position_url_tag:
                 parsed_data[VacancyAttrs.POSITION.attr_id] = position_url_tag.get_text(strip=True)
                 # URL находится в атрибуте href
                 parsed_data[VacancyAttrs.URL.attr_id] = get_real_url(position_url_tag.get('href'))
-            # Извлечение названия компании по заданному селектору
+            # Извлечение названия компании
             sel = email_vacancy_sel_0.company_selector
             company_tag = message_part.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
-            # company_tag = message_part.find(sel.tag, class_=get_class_checker(sel.attr_value))
             company_text = company_tag.get_text(strip=True) if company_tag else ''
             if company_text:
-                parsed_data[VacancyAttrs.COMPANY.attr_id] = junk_removal(company_text, email_vacancy_junk.company)
-            # Извлечение локации компании, опыта работы, информации о зарплате,
-            # которые содержатся в теге <p> с классом djinni-whois-expanded.
+                parsed_data[VacancyAttrs.COMPANY.attr_id] = remove_repl(company_text, email_vacancy_repls.pos_comp)
+            # Извлечение локации компании, опыта работы, информации о зарплате
             sel = email_vacancy_sel_0.location_experience_salary_selector
             location_experience_salary_tag = message_part.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
-            # location_experience_salary_tag = message_part.find(sel.tag, class_=get_class_checker(sel.attr_value))
             tag_text = location_experience_salary_tag.get_text(strip=True) if location_experience_salary_tag else ''
             salary_text = ''
             if tag_text:
-                # Извлечение информации о зарплате, которая содержится в отдельном теге <span> внутри тега <p>
+                # Извлечение информации о зарплате
                 sel = email_vacancy_sel_0.salary_selector
                 salary_tag = location_experience_salary_tag.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
-                # salary_tag = location_experience_salary_tag.find(sel.tag, style=get_style_checker(sel.attr_value))
                 if salary_tag:
                     salary_text = salary_tag.get_text(strip=True)
                 if salary_text:
@@ -327,16 +327,16 @@ class EmailVacancyParserVer0(MessageParser):
                 if 'Український продукт' in experience_text:
                     experience_text = parts[0]
                     del parsed_data[VacancyAttrs.LOCATION.attr_id]
-                parsed_data[VacancyAttrs.EXPERIENCE.attr_id] = junk_removal(experience_text,
-                                                                            email_vacancy_junk.experience)
+                if experience := cast(int | None, str_to_numeric(remove_repl(experience_text,
+                                                                             web_vacancy_repls.experience))):
+                    parsed_data[VacancyAttrs.EXPERIENCE.attr_id] = experience
             # Извлекаем описание вакансии, которое содержится в первом теге <p> после таблицы с основными данными
             sel = email_vacancy_sel_0.job_desc_prev_selector
             job_desc_prev_tag = message_part.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
-            # job_desc_prev_tag = message_part.find(sel.tag, style=get_style_checker(sel.attr_value))
             if job_desc_prev_tag:
                 job_desc_prev_text = job_desc_prev_tag.get_text(strip=True) if job_desc_prev_tag else ''
-                parsed_data[VacancyAttrs.JOB_DESC_PREV.attr_id] = junk_removal(job_desc_prev_text,
-                                                                               email_vacancy_junk.job_desc_prev)
+                parsed_data[VacancyAttrs.JOB_DESC_PREV.attr_id] = remove_repl(job_desc_prev_text,
+                                                                              email_vacancy_repls.job_desc_prev)
             # Подсчет успешно распарсенных полей / Counting successfully parsed fields
             parsed_field_ids = [VacancyAttrs.POSITION.attr_id, VacancyAttrs.URL.attr_id,
                                 VacancyAttrs.COMPANY.attr_id, VacancyAttrs.SALARY_FROM.attr_id,
@@ -359,13 +359,15 @@ class EmailVacancyParserVer1(MessageParser):
         Формат сообщений после 2025-01-24
         """
 
+        parsed_vacancies_data = []
+        if not html:
+            return parsed_vacancies_data
         # Create a BeautifulSoup object for parsing the HTML page with the job posting text
         # Создаем объект BeautifulSoup для парсинга HTML-страницы с текстом вакансии
         soup = BeautifulSoup(html, 'lxml')
         # Разделение HTML сообщения с несколькими вакансиями на отдельные части по заданному тегу и стилю
         splitter = email_vacancy_sel_1.splitter_selector
         message_parts = soup.find_all(splitter.tag, **attr_checker(splitter.attr_name, splitter.attr_value))
-        parsed_vacancies_data = []
         # Обработка каждой части HTML сообщения с вакансией
         for message_part in message_parts:
             parsed_data = {}
@@ -388,71 +390,51 @@ class EmailVacancyParserVer1(MessageParser):
             # Извлечение названия компании по заданному селектору
             sel = email_vacancy_sel_1.company_div_selector
             company_div_tag = message_part.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
-            # company_div_tag = message_part.find(sel.tag, style=get_style_checker(sel.attr_value))
             if company_div_tag:
                 sel = email_vacancy_sel_1.company_span_selector
                 company_span_tag = company_div_tag.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
-                # company_span_tag = company_div_tag.find(sel.tag, class_=get_style_checker(sel.attr_value))
                 if company_span_tag:
                     parsed_data[VacancyAttrs.COMPANY.attr_id] = company_span_tag.get_text(strip=True)
             # Получение деталей вакансии (опыт, английский, формат работы, локация)
             sel = email_vacancy_sel_1.experience_lingvo_worktype_location_selector
             details_tag = message_part.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
-            # details_tag = message_part.find(sel.tag, class_=sel.attr_value)
             if details_tag:
                 parts = [part.strip() for part in details_tag.get_text().split('·')]
                 if parts[0]:
                     # Extracting the experience requirements / Извлечение опыта работы
                     matching = re.search(
-                        f'{regex_patterns.numeric}? ?({"|".join(email_vacancy_junk.experience)})', parts[0])
+                        f'{regex_patterns.numeric}? ?({"|".join(web_vacancy_repls.experience.remove)})', parts[0])
                     if matching:
-                        parsed_data[VacancyAttrs.EXPERIENCE.attr_id] = cast(int | None,
-                                                                            str_to_numeric(matching.group(1)))
+                        parsed_data[VacancyAttrs.EXPERIENCE.attr_id] = (
+                            cast(int | None,
+                                 str_to_numeric(remove_repl(matching.group(1), web_vacancy_repls.experience))))
                         if matching.group(1) is None and matching.group(2) is not None:
                             parsed_data[VacancyAttrs.EXPERIENCE.attr_id] = 0
-                    if parts[0] in ["Без опыта", "без опыта", "No experience", "Без досвіду"]:
-                        parsed_data[VacancyAttrs.EXPERIENCE.attr_id] = 0
                 if parts[1]:
                     # Extracting the lingvo level / Извлечение уровня знания языка
-                    match parts[1]:
-                        case 'Beginner / Elementary':
-                            lingvo = 'A1'
-                        case 'PreIntermediate':
-                            lingvo = 'A2'
-                        case 'Intermediate':
-                            lingvo = 'B1'
-                        case 'Advanced / Fluent':
-                            lingvo = 'C1'
-                        case 'UpperIntermediate':
-                            lingvo = 'B2'
-                        case 'No English':
-                            lingvo = ''
-                        case _:
-                            lingvo = parts[1]
-                    parsed_data[VacancyAttrs.LINGVO.attr_id] = junk_removal(lingvo, email_vacancy_junk.lingvo)
+                    parsed_data[VacancyAttrs.LINGVO.attr_id] = remove_repl(parts[1], web_vacancy_repls.lingvo)
                 if parts[2]:
-                    # Extracting work format / Извлечение типа работы
-                    parsed_data[VacancyAttrs.EMPLOYMENT.attr_id] = parts[2]
+                    # Extracting work format / Извлечение формата работы
+                    parsed_data[VacancyAttrs.EMPLOYMENT.attr_id] = remove_repl(parts[2], web_vacancy_repls.employment)
                 if parts[3]:
                     # Extracting candidate locations / Извлечение локации соискателей
-                    parsed_data[VacancyAttrs.CANDIDATE_LOCATIONS.attr_id] = parts[3]
+                    parsed_data[VacancyAttrs.CANDIDATE_LOCATIONS.attr_id] = remove_repl(parts[3],
+                                                                                        web_vacancy_repls.candidate_locations)
             # Извлекаем описание вакансии
             sel = email_vacancy_sel_1.job_desc_prev_selector
             job_desc_prev_tag = message_part.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
-            # job_desc_prev_tag = message_part.find(sel.tag, style=get_style_checker(sel.attr_value))
             if job_desc_prev_tag:
                 job_desc_prev_text = job_desc_prev_tag.get_text(strip=True) if job_desc_prev_tag else ''
                 if job_desc_prev_text:
-                    parsed_data[VacancyAttrs.JOB_DESC_PREV.attr_id] = junk_removal(job_desc_prev_text,
-                                                                                   email_vacancy_junk.job_desc_prev)
+                    parsed_data[VacancyAttrs.JOB_DESC_PREV.attr_id] = remove_repl(job_desc_prev_text,
+                                                                                  email_vacancy_repls.job_desc_prev)
             # Извлекаем параметры подписки
             sel = email_vacancy_sel_1.subscription_selector
             subscription_tag = message_part.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
-            # subscription_tag = message_part.find(sel.tag, class_=get_class_checker(sel.attr_value))
             if subscription_tag:
                 subscription_text = subscription_tag.get_text(strip=True)
-                parsed_data[VacancyAttrs.SUBSCRIPTION.attr_id] = junk_removal(subscription_text,
-                                                                              email_vacancy_junk.subscription)
+                parsed_data[VacancyAttrs.SUBSCRIPTION.attr_id] = remove_repl(subscription_text,
+                                                                             email_vacancy_repls.subscription)
             # Подсчет успешно распарсенных полей / Counting successfully parsed fields
             parsed_field_ids = [VacancyAttrs.POSITION.attr_id, VacancyAttrs.URL.attr_id,
                                 VacancyAttrs.SALARY_FROM.attr_id, VacancyAttrs.SALARY_TO.attr_id,
@@ -485,11 +467,16 @@ class WebVacancyParser(MessageParser):
                     result_dict.update({table_cols[0].get_text(strip=True): table_cols[1].get_text(strip=True)})
             return result_dict
 
-        soup = BeautifulSoup(html, 'lxml')
         parsed_data = {}
+        if not html:
+            return parsed_data
+        soup = BeautifulSoup(html, 'lxml')
         # Извлечение позиции
         position_tag = soup.select_one(web_vacancy_sel.position_selector)
         if position_tag:
+            nested_span = position_tag.find('span')
+            if nested_span:
+                nested_span.decompose()
             parsed_data[VacancyAttrs.POSITION.attr_id] = html_to_text(position_tag.get_text(strip=True))
         # Extracting company
         company_tag = soup.select_one(web_vacancy_sel.company_selector)
@@ -505,9 +492,12 @@ class WebVacancyParser(MessageParser):
         url_tag = soup.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
         if url_tag:
             parsed_data[VacancyAttrs.URL.attr_id] = url_tag['href'].split('-', 1)[0]
+        # Инициализируем список заметок / Initializing the notes list
+        notes = []
         # Extracting tech stack / Извлечение технического стека
         tech_stack = {}
-        tech_stack_h2 = soup.find(lambda tag: tag.name == 'h2' and 'skills' in tag.get_text().lower())
+        tech_stack_h2 = soup.find(lambda tag: tag.name == 'h2' and any(
+            ['skills' in tag.get_text().lower(), 'досвід' in tag.get_text().lower()]))
         tech_stack_tag = tech_stack_h2.find_next('table') if tech_stack_h2 else None
         if tech_stack_tag:
             tech_stack.update(table_parsing(tech_stack_tag))
@@ -516,59 +506,145 @@ class WebVacancyParser(MessageParser):
         more_tech_stack_tag = more_tech_stack_div.find_next('table') if more_tech_stack_div else None
         if more_tech_stack_tag:
             tech_stack.update(table_parsing(more_tech_stack_tag))
+        second_tech_stack = soup.select(web_vacancy_sel.second_tech_stack_selector)
+        if second_tech_stack:
+            second_tech_stack_list = second_tech_stack[0].get_text(strip=True).split(', ')
+            second_tech_stack_dict = dict.fromkeys(second_tech_stack_list, '')
+            tech_stack = second_tech_stack_dict | tech_stack  # Merge dictionaries, second_tech_stack_dict has higher priority
+        # Удаляем сведения о языках, случайно попавшие в технический стек
+        tech_stack.pop('English', None)
+        tech_stack.pop('Ukrainian', None)
+        tech_stack.pop('Russian', None)
+        if tech_stack:
+            for tech, skill in tech_stack.items():
+                if skill:
+                    notes.append(remove_repl(f'{tech}: {skill}', web_vacancy_repls.notes))
         # Filling the lingvo level / Заполнение уровня знания языка
         lingvo = {}
-        lingvo_h2 = soup.find(lambda tag: tag.name == 'h2' and 'language' in tag.get_text().lower())
+        lingvo_list = []
+        lingvo_table = None
+        lingvo_in_card = None
+        lingvo_h2 = soup.find(lambda tag: tag.name == 'h2' and any(
+            ['language' in tag.get_text().lower(), 'мовами' in tag.get_text().lower()]))
         lingvo_tag = lingvo_h2.find_next('table') if lingvo_h2 else None
         if lingvo_tag:
-            lingvo.update(table_parsing(lingvo_tag))
+            lingvo_table = table_parsing(lingvo_tag)
+            lingvo.update(lingvo_table)
         if lingvo:
-            parsed_data[VacancyAttrs.LINGVO.attr_id] = str(lingvo)
-
-            # Job card processing
-        sel = web_vacancy_sel.job_card_selector
-        job_card_tag = soup.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
+            # Извлекаем отдельно уровень знания английского языка
+            if lingvo.get('English'):
+                lingvo_list.append(remove_repl(lingvo.pop('English'), web_vacancy_repls.lingvo))
+            if lingvo.get('Англійська'):
+                lingvo_list.append(remove_repl(lingvo.pop('Англійська'), web_vacancy_repls.lingvo))
+            # Требования к остальным языкам записываем в заметки
+            for language, skill in lingvo.items():
+                notes.append(remove_repl(f'{language}: {skill}', web_vacancy_repls.notes))
+        # Job card processing
+        employment = []
+        salary_text = ''
+        job_card_tag = soup.select_one(web_vacancy_sel.job_card_selector)
         if job_card_tag:
             all_ul_tag = job_card_tag.find_all('ul')
             if len(all_ul_tag) == 3:
-                notes = []
-                # Извлечение требований вакансии
+                # Блок № 1. Требования вакансии
+                requirements = []
                 ul_tag = all_ul_tag[0]
                 all_li_tag = ul_tag.find_all('li')
-                for li_tag in all_li_tag or []:
-                    notes.append(html_to_text(li_tag.get_text(strip=True)))
-                # Filling in the skills table from card
+                # Выбираем основную и дополнительную информацию из каждого тега в список
+                for index, li_tag in enumerate(all_li_tag or []):
+                    info_tag = li_tag.find('strong')
+                    if info_tag:
+                        requirements.append(html_to_text(info_tag.get_text(strip=True)))
+                    if index in [0, 3]:  # 0 - Experience, 3 - Lingvo
+                        note_tag = li_tag.find('small')  # примечания отправляем в заметки
+                        if note_tag:
+                            notes.append(note_tag.get_text(strip=True))
+                # Обрабатываем информацию о зарплате из второй строки, если она там есть и удаляем эту строку из списка
+                if len(requirements) >= 2 and requirements[1].find('$') != -1:
+                    # Extracting salary information / Извлечение информации о зарплате
+                    salary_text = requirements[1]
+                    salary_min, salary_max = get_salary(salary_text)
+                    if salary_min:
+                        parsed_data[VacancyAttrs.SALARY_FROM.attr_id] = salary_min
+                    if salary_max:
+                        parsed_data[VacancyAttrs.SALARY_TO.attr_id] = salary_max
+                    del requirements[1]
+                # Обрабатываем информацию из списка требований
+                for index, req_str in enumerate(requirements.copy()):
+                    match index:
+                        case 0:  # Experience
+                            experience = re.search(regex_patterns.numeric,
+                                                   remove_repl(req_str, web_vacancy_repls.experience))
+                            if experience:
+                                parsed_data[VacancyAttrs.EXPERIENCE.attr_id] = (
+                                    cast(int | None, str_to_numeric(experience[0])))
+                        case 1:  # Work format
+                            employment.append(remove_repl(req_str, web_vacancy_repls.employment))
+                        case 2:  # Candidate locations
+                            parsed_data[VacancyAttrs.CANDIDATE_LOCATIONS.attr_id] = (
+                                remove_repl(req_str, web_vacancy_repls.candidate_locations))
+                        case 3:  # Lingvo
+                            lingvo_in_card = remove_repl(req_str, web_vacancy_repls.lingvo)
+                            if lingvo_in_card in ChainMap(*web_vacancy_repls.lingvo.repl).keys():
+                                lingvo_list.append(lingvo_in_card)
+                            else:
+                                notes.append(lingvo_in_card)
+                                lingvo_in_card = None
+                        case _:  # Other requirements go to notes
+                            notes.append(req_str)
+                # Блок № 2. Требования к навыкам / Filling in the skills table from card
                 ul_tag = all_ul_tag[1]
+                main_tech_tag = ul_tag.select_one(web_vacancy_sel.main_tech_selector)
+                if main_tech_tag:
+                    parsed_data[VacancyAttrs.MAIN_TECH.attr_id] = html_to_text(main_tech_tag.get_text(strip=True))
                 tech_stack_tag = ul_tag.find('table')
                 if tech_stack_tag:
-                    sel = web_vacancy_sel.main_tech_selector
-                    main_tech_tag = ul_tag.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
-                    if main_tech_tag:
-                        parsed_data[VacancyAttrs.MAIN_TECH.attr_id] = html_to_text(main_tech_tag.get_text(strip=True))
                     tech_stack.update(table_parsing(tech_stack_tag))
-                    parsed_data[VacancyAttrs.TECH_STACK.attr_id] = ', '.join(sorted(tech_stack.keys()))
-                # Извлечение характеристик компании
+                # Блок № 3. Характеристики компании
+                ul_tag = all_ul_tag[2]
                 all_li_tag = ul_tag.find_all('li')
                 for index, li_tag in enumerate(all_li_tag or []):
                     match index:
-                        case 0:
-                            parsed_data[VacancyAttrs.EMPLOYMENT.attr_id] = html_to_text(li_tag.get_text(strip=True))
-                        case 1:
-                            parsed_data[VacancyAttrs.DOMAIN.attr_id] = html_to_text(li_tag.get_text(strip=True))
-                        case 2:
-                            parsed_data[VacancyAttrs.COMPANY_TYPE.attr_id] = html_to_text(li_tag.get_text(strip=True))
-                        case _: notes.append(html_to_text(li_tag.get_text(strip=True)))
-                parsed_data[VacancyAttrs.NOTES.attr_id] = '\n'.join(notes)
-
+                        case 0:  # Work format
+                            employment.append(
+                                remove_repl(html_to_text(li_tag.get_text(strip=True)),
+                                            web_vacancy_repls.employment))
+                        case 1:  # Domain
+                            parsed_data[VacancyAttrs.DOMAIN.attr_id] = remove_repl(
+                                html_to_text(li_tag.get_text(strip=True)), web_vacancy_repls.domain)
+                        case 2:  # Company type
+                            parsed_data[VacancyAttrs.COMPANY_TYPE.attr_id] = remove_repl(
+                                html_to_text(li_tag.get_text(strip=True)), web_vacancy_repls.company_type)
+                        case 3:  # Company offices
+                            li_tag_text = html_to_text(li_tag.get_text(strip=True))
+                            for remove_sign in web_vacancy_repls.offices.remove:
+                                if li_tag_text.find(remove_sign) != -1:
+                                    parsed_data[VacancyAttrs.OFFICES.attr_id] = remove_repl(li_tag_text,
+                                                                                            web_vacancy_repls.offices)
+                                    li_tag_text = ''
+                            if li_tag_text:
+                                notes.append(li_tag_text)
+                        case _:  # Other characteristics go to notes
+                            notes.append(html_to_text(li_tag.get_text(strip=True)))
+        if tech_stack:
+            parsed_data[VacancyAttrs.TECH_STACK.attr_id] = ', '.join(sorted(tech_stack.keys()))
+        if lingvo_list:
+            parsed_data[VacancyAttrs.LINGVO.attr_id] = ', '.join(sorted(set(lingvo_list)))
+        if employment:
+            parsed_data[VacancyAttrs.EMPLOYMENT.attr_id] = ', '.join(employment)
+        if notes:
+            parsed_data[VacancyAttrs.NOTES.attr_id] = '\n'.join(sorted(set(notes)))
         # Подсчет успешно распарсенных полей / Counting successfully parsed fields
         parsed_field_ids = [VacancyAttrs.POSITION.attr_id, VacancyAttrs.COMPANY.attr_id,
                             VacancyAttrs.JOB_DESC.attr_id, VacancyAttrs.URL.attr_id,
+                            VacancyAttrs.SALARY_FROM.attr_id, VacancyAttrs.SALARY_TO.attr_id,
+                            VacancyAttrs.EXPERIENCE.attr_id, VacancyAttrs.CANDIDATE_LOCATIONS.attr_id,
                             VacancyAttrs.LINGVO.attr_id, VacancyAttrs.EMPLOYMENT.attr_id,
                             VacancyAttrs.DOMAIN.attr_id, VacancyAttrs.COMPANY_TYPE.attr_id,
-                            VacancyAttrs.SALARY_FROM.attr_id, VacancyAttrs.SALARY_TO.attr_id,
                             VacancyAttrs.MAIN_TECH.attr_id, VacancyAttrs.TECH_STACK.attr_id, ]
-        parsed_data['web_parsing_error'] = get_parsing_error(parsed_data, parsed_field_ids, '')
-
+        if not lingvo_table and not lingvo_in_card:
+            parsed_field_ids.remove(VacancyAttrs.LINGVO.attr_id)
+        parsed_data['web_parsing_error'] = get_parsing_error(parsed_data, parsed_field_ids, salary_text)
         return parsed_data
 
 
@@ -600,12 +676,18 @@ def email_detect_message_type(email_html: str) -> MessageTypes:
     return result
 
 
-def junk_removal(text: str, junk_list: list[str]) -> str:
+def remove_repl(text: str | None, patterns: Repls) -> str | None:
     """
-    Удаление служебных символов и ненужные фрагментов из текста
+    Замена текста по шаблону или удаление служебных символов и ненужных фрагментов текста
     """
-    for junk in junk_list:
-        text = text.replace(junk, '')
+    if text is None or text.strip() == '':
+        return None
+    for repl_dict in patterns.repl:
+        for key, value in repl_dict.items():
+            if text in sorted(value, key=len, reverse=True):
+                text = key
+    for pattern in sorted(patterns.remove, key=len, reverse=True):
+        text = text.replace(pattern, '')
     return text.strip()
 
 
