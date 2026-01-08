@@ -20,7 +20,6 @@ from typing import Any, Optional, Type, TypeVar, List
 import pandas as pd
 from sqlalchemy import create_engine, Integer, ForeignKey, Text, String, event, Engine, Table, Column, inspect
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, Session
-from config_handler import config
 from configs.config import GlobalConst, TableNames, MessageSources, MessageTypes, VacancyAttrs
 
 # A dictionary containing descriptions of HTTP request errors / Описание ошибок HTTP-запросов
@@ -506,30 +505,30 @@ class DatabaseHandler:
     #     self.session.commit()
 
 
-def export_data_to_excel(self):
-    """
-    Exporting data from the database to an MS Excel file
-    Экспорт данных из БД в файл формата MS Excel
-    """
-    data_frames = {}
-    # Импортируем данные из каждой таблицы в соответствующий DataFrame
-    # и устанавливаем имена столбцов для Excel
-    for table in TableNames.get_table_names():
-        data_frames[table] = pd.read_sql(config.export_to_excel[table].sql, self.engine.connect())
-        data_frames[table].columns = config.export_to_excel[table].columns.values()
-    # Determining the available Excel file name for export
-    # Определяем доступное имя Excel файла для экспорта
-    excel_file_suffix = 1
-    excel_file_name = Path(GlobalConst.excel_file)
-    while excel_file_name.exists():
-        excel_file_name = Path(excel_file_name.as_posix().replace('.xlsx', f'({excel_file_suffix}).xlsx'))
-        excel_file_suffix += 1
-    # Writing DataFrame(s) to the corresponding sheets of the Excel file
-    # Записываем DataFrame(s) в соответствующие листы файла Excel
-    with pd.ExcelWriter(excel_file_name, engine="openpyxl") as writer:
-        for table in TableNames.get_table_names():
-            data_frames[table].to_excel(writer, sheet_name=config.export_to_excel[table].sheet_name,
-                                        index=False, header=True, freeze_panes=(1, 1))
+# def export_data_to_excel(self):
+#     """
+#     Exporting data from the database to an MS Excel file
+#     Экспорт данных из БД в файл формата MS Excel
+#     """
+#     data_frames = {}
+#     # Импортируем данные из каждой таблицы в соответствующий DataFrame
+#     # и устанавливаем имена столбцов для Excel
+#     for table in TableNames.get_table_names():
+#         data_frames[table] = pd.read_sql(config.export_to_excel[table].sql, self.engine.connect())
+#         data_frames[table].columns = config.export_to_excel[table].columns.values()
+#     # Determining the available Excel file name for export
+#     # Определяем доступное имя Excel файла для экспорта
+#     excel_file_suffix = 1
+#     excel_file_name = Path(GlobalConst.excel_file)
+#     while excel_file_name.exists():
+#         excel_file_name = Path(excel_file_name.as_posix().replace('.xlsx', f'({excel_file_suffix}).xlsx'))
+#         excel_file_suffix += 1
+#     # Writing DataFrame(s) to the corresponding sheets of the Excel file
+#     # Записываем DataFrame(s) в соответствующие листы файла Excel
+#     with pd.ExcelWriter(excel_file_name, engine="openpyxl") as writer:
+#         for table in TableNames.get_table_names():
+#             data_frames[table].to_excel(writer, sheet_name=config.export_to_excel[table].sheet_name,
+#                                         index=False, header=True, freeze_panes=(1, 1))
 
 
 # Создаем экземпляр DatabaseHandler()

@@ -1,5 +1,4 @@
-import atexit
-from asyncio import new_event_loop, set_event_loop
+from asyncio import new_event_loop, set_event_loop, all_tasks, gather
 from datetime import datetime
 from sys import maxsize
 from typing import List
@@ -32,23 +31,39 @@ def get_new_messages(tg_client: TelegramClient, bot_name: str, last_date: dateti
     return message_list
 
 
+async def disconnect_client(tg_client: TelegramClient):
+    """
+    Асинхронное отключение клиента
+    """
+    if tg_client.is_connected():
+        await tg_client.disconnect()
 
 
-def cleanup_loop():
+def cleanup_loop(tg_client: TelegramClient):
     """
-    Вызывается при завершении приложения и закрывает цикл событий, если он открыт.
+    Вызывается при завершении приложения. Отключает клиент и закрывает цикл событий, если он открыт.
     """
-    if loop.is_running():
-        loop.stop()
-    if not loop.is_closed():
-        loop.close()
-    set_event_loop(None)
+    try:
+        # Отключаем клиент
+        if not loop.is_closed():
+            loop.run_until_complete(disconnect_client(tg_client))
+        # Отменяем pending задачи
+        if not loop.is_closed():
+            pending = all_tasks(loop)
+            for task in pending:
+                task.cancel()
+            if pending:
+                loop.run_until_complete(gather(*pending, return_exceptions=True))
+        # Закрываем loop
+        if not loop.is_closed():
+            loop.close()
+    except Exception as e:
+        print(f"Telegram client and loop cleanup error: {e}")
 
 
 # Создаем и сохраняем цикл событий
 loop = new_event_loop()
 set_event_loop(loop)
-atexit.register(cleanup_loop)
 # Creating a client for working with Telegram / Создание клиента для работы с Telegram
 _tg_client = None
 

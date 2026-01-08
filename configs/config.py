@@ -9,7 +9,7 @@ class GlobalConst:
         'configs') / '.env'  # Confidential data file name / Имя файла с конфиденциальными данными
     database_file = 'full_vacancies.db'  # SQLite file name / Имя файла SQLite базы данных
     excel_file = 'exported_data.xlsx'  # Exported MS Excel file name / Имя экспортируемого файла MS Excel
-    parse_config_file = 'configs/config.json'  # Configuration data file in JSON format / Имя файла конфигурации в формате JSON
+    parse_config_file = 'config.toml'  # Configuration data file / Имя файла конфигурации
     timeout_seconds = 10  # Timeout for HTTP requests in seconds / Таймаут для HTTP запросов в секундах
     max_concurrent_requests = 10  # Maximum number of concurrent HTTP requests / Максимальное количество одновременных HTTP запросов
     user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'  # User-Agent for HTTP requests / User-Agent для HTTP запросов
