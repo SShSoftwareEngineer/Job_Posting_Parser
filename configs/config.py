@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, StrEnum
 from pathlib import Path
 
 
@@ -177,6 +177,25 @@ class VacancyAttrs(Enum):
                 result = item.name.lower()
         return result
 
+class ReportLabel(StrEnum):
+    EMAIL_MESS="Email messages received"
+    EMAIL_RAW="Email RAW messages processed"
+    EMAIL_VAC="Email vacancy messages processed"
+    TG_VAC="Telegram vacancy messages processed"
+    TG_STAT="Telegram statistic messages processed"
+    TG_SERV="Telegram service messages processed"
+    TG_MESS = "Telegram messages received"
+
+# EMAIL                 2
+# EMAIL_RAW added       1
+# EMAIL_RAW updated     1
+# EMAIL_URL added       14
+# EMAIL_URL updated     16
+# EMAIL_VACANCY added   15
+# EMAIL_VACANCY updated 15
+# TELEGRAM              0
+# WEB_URL updated       30
+# WEB_VACANCY_PARSED    30
 
 if __name__ == '__main__':
     pass
