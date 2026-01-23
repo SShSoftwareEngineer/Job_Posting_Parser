@@ -1,5 +1,4 @@
 import asyncio
-import csv
 import hashlib
 import http
 import json
@@ -10,11 +9,9 @@ import aiohttp
 from imapclient import IMAPClient
 from sqlalchemy import select, func, or_, and_
 from dotenv import dotenv_values
-from sqlalchemy.util import methods_equivalent
 from telethon import TelegramClient
 from tqdm import tqdm
 
-from config_handler import regex_patterns
 from configs.config import GlobalConst, MessageSources, MessageTypes, VacancyAttrs
 from database_handler import db_handler, RawMessage, Statistic, Service, VacancyWeb, Vacancy, VacancyData
 import telegram_handler as tg_handler

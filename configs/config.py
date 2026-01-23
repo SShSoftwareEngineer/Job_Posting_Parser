@@ -180,20 +180,26 @@ class VacancyAttrs(Enum):
 class ReportLabel(StrEnum):
     EMAIL_MESS="Email messages received"
     EMAIL_RAW="Email RAW messages processed"
+    EMAIL_RAW_ADD="Email RAW messages added"
+    EMAIL_RAW_UPD="Email RAW messages updated"
     EMAIL_VAC="Email vacancy messages processed"
-    TG_VAC="Telegram vacancy messages processed"
-    TG_STAT="Telegram statistic messages processed"
-    TG_SERV="Telegram service messages processed"
+    EMAIL_VAC_ADD="Email vacancy messages added"
+    EMAIL_VAC_UPD="Email vacancy messages updated"
+    EMAIL_VAC_ERR="Email vacancy parsing errors"
+    EMAIL_URL_ADD = "Email vacancy URL added"
+    EMAIL_URL_UPD="Email vacancy URL updated"
     TG_MESS = "Telegram messages received"
+    TG_RAW="Telegram RAW vacancy messages processed"
+    TG_VAC="Telegram Vacancy messages processed"
+    TG_STAT="Telegram Statistic messages processed"
+    TG_SERV="Telegram Service messages processed"
+    TG_ERR = "Telegram message parsing errors"
+    TG_URL_ADD = "Telegram vacancy URL added"
+    TG_URL_UPD="Telegram vacancy URL updated"
+    WEB_VAC = "Web vacancy processed"
+    WEB_ERR = "Web vacancy parsing errors"
 
-# EMAIL                 2
-# EMAIL_RAW added       1
-# EMAIL_RAW updated     1
-# EMAIL_URL added       14
-# EMAIL_URL updated     16
-# EMAIL_VACANCY added   15
-# EMAIL_VACANCY updated 15
-# TELEGRAM              0
+
 # WEB_URL updated       30
 # WEB_VACANCY_PARSED    30
 
