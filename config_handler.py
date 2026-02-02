@@ -1,56 +1,76 @@
 """
-The module is designed to work with a configuration file and contains constants and classes for working with it.
+Configuration handler module
+Модуль обработчика конфигурации
 
+Selector: model for describing HTML selectors
+Repls: model for describing replacement and removal patterns
+TgMessagesSigns: signatures for parsing Telegram messages
+TgVacancyTextSigns: signatures for parsing Telegram vacancy messages
+TgStatisticTextSigns: signatures for parsing Telegram statistics messages
+EmailMessagesSigns: signatures for parsing E-mail messages
+EmailVacancySelVer0: HTML selectors for parsing E-mail vacancy messages version 0
+EmailVacancySelVer1: HTML selectors for parsing E-mail vacancy messages version 1
+EmailVacancyRepls: replacement patterns for parsing E-mail vacancy messages
+WebVacancySel: HTML selectors for parsing Web vacancy content
+WebVacancyRepls: replacement patterns for parsing Web vacancy content
+RegexPatterns: regular expression patterns for extracting text information
 Config: the root configuration class
-MessageConfig: signatures for parsing vacancy and statistics messages
-ExportToExcel: configuration for exporting results to MS Excel format
-RePatterns: regular expressions (patterns) for extracting text information
-HtmlParsingSigns: signatures for parsing HTML message files from the website
-VacancyMessage: signatures for parsing Telegram vacancy messages and HTML message files from the website
-StatisticMessage: signatures for parsing Telegram statistics messages
-HtmlClasses: names of HTML tag classes that correspond to required blocks in the HTML message file from the website
-config: an object of the Config class containing the configuration read from a JSON file
 """
 
-import json
 import tomllib
 from pydantic import BaseModel, ValidationError
-from configs.config import GlobalConst, TableNames
+from configs.config import GlobalConst
 
-# Loads the configuration from a file
-# Загружает конфигурацию из файла
-with open(GlobalConst.parse_config_file, 'rb') as f:
-    config_toml = tomllib.load(f)
 
+# Supporting models / Вспомогательные модели
+
+class Selector(BaseModel):
+    """
+    Model for describing HTML selectors
+    Модель для описания HTML селекторов
+    """
+    tag: str
+    attr_name: str
+    attr_value: list[str]
+
+
+class Repls(BaseModel):
+    """
+    Model for describing replacement and removal patterns
+    Модель для описания шаблонов замены и удаления
+    """
+    repl: list[dict[str, list[str]]] = []  # replacement patterns
+    remove: list[str] = []  # remove patterns
+
+
+# Models for processing Telegram messages / Модели для обработки сообщений Telegram
 
 class TgMessagesSigns(BaseModel):
+    """
+    Model for describing signs in Telegram messages
+    Модель для описания признаков в сообщениях Telegram
+    """
     tg_vacancy: list[str]
     tg_statistic: list[str]
     tg_service: list[str]
 
 
-tg_messages_signs = None
-try:
-    tg_messages_signs = TgMessagesSigns(**config_toml.get('tg_messages_signs', {}))
-except ValidationError as err:
-    print(f'Error in [tg_messages_signs] section: {err}')
-
-
 class TgVacancyTextSigns(BaseModel):
+    """
+    Model for describing signs in Telegram vacancy messages
+    Модель для описания признаков в сообщениях Telegram вакансий
+    """
     position_company: list[str]
     location_experience: list[str]
     subscription: list[str]
     splitter_pattern: list[str]
 
 
-tg_vacancy_text_signs = None
-try:
-    tg_vacancy_text_signs = TgVacancyTextSigns(**config_toml.get('tg_vacancy_text_signs', {}))
-except ValidationError as err:
-    print(f'Error in [tg_vacancy_text_signs] section: {err}')
-
-
 class TgStatisticTextSigns(BaseModel):
+    """
+    Model for describing signs in Telegram statistics messages
+    Модель для описания признаков в сообщениях Telegram статистики
+    """
     vacancies_in_30d: list[str]
     candidates_online: list[str]
     salary: list[str]
@@ -59,48 +79,21 @@ class TgStatisticTextSigns(BaseModel):
     candidates_per_week: list[str]
 
 
-tg_statistic_text_signs = None
-try:
-    tg_statistic_text_signs = TgStatisticTextSigns(**config_toml.get('tg_statistic_text_signs', {}))
-except ValidationError as err:
-    print(f'Error in [tg_statistic_text_signs] section: {err}')
-
-
-class RegexPatterns(BaseModel):
-    url: str
-    numeric: str
-    salary: str
-    salary_range: str
-
-
-regex_patterns = None
-try:
-    regex_patterns = RegexPatterns(**config_toml.get('regex_patterns', {}))
-except ValidationError as err:
-    print(f'Error in [regex_patterns] section: {err}')
-
-regex_patterns.salary = regex_patterns.salary.replace('{numeric_pattern}', regex_patterns.numeric)
-regex_patterns.salary_range = regex_patterns.salary_range.replace('{numeric_pattern}', regex_patterns.numeric)
-
-
-class Selector(BaseModel):
-    tag: str
-    attr_name: str
-    attr_value: list[str]
-
+# Models for processing email messages / Модели для обработки E-mail сообщений
 
 class EmailMessagesSigns(BaseModel):
+    """
+    Model for describing signs in E-mail messages
+    Модель для описания признаков в E-mail сообщениях
+    """
     vacancy: list[Selector]
 
 
-email_messages_signs = None
-try:
-    email_messages_signs = EmailMessagesSigns(**config_toml.get('email_messages_signs', {}))
-except ValidationError as err:
-    print(f'Error in [email_messages_signs] section: {err}')
-
-
 class EmailVacancySelVer0(BaseModel):
+    """
+    Model for describing HTML selectors in E-mail vacancy messages version 0
+    Модель для описания HTML селекторов в E-mail сообщениях вакансий версии 0
+    """
     position_url_selector: Selector
     company_selector: Selector
     location_experience_salary_selector: Selector
@@ -109,14 +102,11 @@ class EmailVacancySelVer0(BaseModel):
     splitter_selectors: list[Selector]
 
 
-email_vacancy_sel_0 = None
-try:
-    email_vacancy_sel_0 = EmailVacancySelVer0(**config_toml.get('email_vacancy_sel_0', {}))
-except ValidationError as err:
-    print(f'Error in [email_vacancy_sel_0] section: {err}')
-
-
 class EmailVacancySelVer1(BaseModel):
+    """
+    Model for describing HTML selectors in E-mail vacancy messages version 1
+    Модель для описания HTML селекторов в E-mail сообщениях вакансий версии 1
+    """
     splitter_selector: Selector
     position_url_selector: str
     salary_selector: str
@@ -127,32 +117,23 @@ class EmailVacancySelVer1(BaseModel):
     subscription_selector: Selector
 
 
-email_vacancy_sel_1 = None
-try:
-    email_vacancy_sel_1 = EmailVacancySelVer1(**config_toml.get('email_vacancy_sel_1', {}))
-except ValidationError as err:
-    print(f'Error in [email_vacancy_sel_1] section: {err}')
-
-
-class Repls(BaseModel):
-    repl: list[dict[str, list[str]]] = []  # replacement patterns
-    remove: list[str] = []  # remove patterns
-
-
 class EmailVacancyRepls(BaseModel):
+    """
+    Model for describing replacement patterns in E-mail vacancy messages
+    Модель для описания шаблонов замены в E-mail сообщениях вакансий
+    """
     pos_comp: Repls
     job_desc_prev: Repls
     subscription: Repls
 
 
-email_vacancy_repls = None
-try:
-    email_vacancy_repls = EmailVacancyRepls(**config_toml.get('email_vacancy_repls', {}))
-except ValidationError as err:
-    print(f'Error in [email_vacancy_repls] section: {err}')
-
+# Models for processing web content of job vacancies, e-mails / Модели для обработки Web-содержимого вакансий и E-mail
 
 class WebVacancySel(BaseModel):
+    """
+    Model for describing HTML selectors in Web vacancy content
+    Модель для описания HTML селекторов в Web содержимом вакансий
+    """
     position_selector: str
     company_selector: str
     job_desc_selector: Selector
@@ -163,14 +144,11 @@ class WebVacancySel(BaseModel):
     job_card_selector: str
 
 
-web_vacancy_sel = None
-try:
-    web_vacancy_sel = WebVacancySel(**config_toml.get('web_vacancy_sel', {}))
-except ValidationError as err:
-    print(f'Error in [web_vacancy_sel] section: {err}')
-
-
 class WebVacancyRepls(BaseModel):
+    """
+    Model for describing replacement patterns in Web vacancy content
+    Модель для описания шаблонов замены в Web содержимом вакансий
+    """
     experience: Repls
     lingvo: Repls
     employment: Repls
@@ -181,13 +159,68 @@ class WebVacancyRepls(BaseModel):
     notes: Repls
 
 
-web_vacancy_repls = None
-try:
-    web_vacancy_repls = WebVacancyRepls(**config_toml.get('web_vacancy_repls', {}))
-except ValidationError as err:
-    print(f'Error in [web_vacancy_repls] section: {err}')
+# Models for working with regular expressions / Модели для работы с регулярными выражениями
 
-pass
+class RegexPatterns(BaseModel):
+    """
+    Model for describing regular expression patterns
+    Модель для описания шаблонов регулярных выражений
+    """
+    url: str
+    numeric: str
+    salary: str
+    salary_range: str
+
+
+# Root configuration model / Корневая модель конфигурации
+
+class Config(BaseModel):
+    """
+    Root configuration model
+    Корневая модель конфигурации
+    """
+    tg_messages_signs: TgMessagesSigns
+    tg_vacancy_text_signs: TgVacancyTextSigns
+    tg_statistic_text_signs: TgStatisticTextSigns
+    email_messages_signs: EmailMessagesSigns
+    email_vacancy_sel_0: EmailVacancySelVer0
+    email_vacancy_sel_1: EmailVacancySelVer1
+    email_vacancy_repls: EmailVacancyRepls
+    web_vacancy_sel: WebVacancySel
+    web_vacancy_repls: WebVacancyRepls
+    regex_patterns: RegexPatterns
+
+
+# Loads the configuration from a file / Загружаем конфигурацию из файла
+
+def load_config() -> Config:
+    """
+    Loads the configuration from a TOML file and returns a Config object.
+    Загружает конфигурацию из TOML файла и возвращает объект Config.
+        Returns:
+    Config: The configuration object.
+    """
+    config_path = GlobalConst.parse_config_file
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+    with config_path.open('rb') as f:
+        data = tomllib.load(f)
+    try:
+        config_obj = Config(**data)
+        # Performing post-processing for regex_patterns / Выполняем постобработку для regex_patterns
+        reg_pat = config_obj.regex_patterns
+        reg_pat.salary = reg_pat.salary.replace('{numeric_pattern}', reg_pat.numeric)
+        reg_pat.salary_range = reg_pat.salary_range.replace('{numeric_pattern}', reg_pat.numeric)
+        return config_obj
+    except ValidationError as err:
+        print(f"CRITICAL: Configuration validation failed:\n{err}")
+        # Add ‘from err’ to preserve context / Добавляем 'from err' для сохранения контекста
+        raise SystemExit(1) from err
+
+
+# Creating a general configuration object
+# Создаем единый объект конфигурации
+config = load_config()
 
 if __name__ == '__main__':
     pass

@@ -1,3 +1,8 @@
+"""
+Main script for receiving, processing and saving job posting messages from Telegram bot, Email and web site to database
+Основной скрипт для получения, обработки и сохранения в БД сообщений о вакансиях из Telegram бота, Email и с сайта
+"""
+
 import asyncio
 import hashlib
 import http
@@ -20,7 +25,8 @@ from parsers import TgRawParser, TgVacancyParser, TgStatisticParser, EmailRawPar
     EmailVacancyParserVer1, WebVacancyParser
 
 
-def telegram_messages_processing(tg_client: TelegramClient, bot_name: str, messages_counter: Counter) -> Counter:
+def telegram_messages_processing(tg_client: TelegramClient, bot_name: str, from_first: bool,
+                                 messages_counter: Counter) -> Counter:
     """
     Receiving and processing new messages from a Telegram bot
     Получение и обработка новых сообщений из Telegram бота
@@ -32,11 +38,11 @@ def telegram_messages_processing(tg_client: TelegramClient, bot_name: str, messa
         Counter: Updated message counter for all types
     """
 
-    # Determine the last Telegram message date in the database / Определяем дату последнего Telegram сообщения в базе данных
+    # Determine the last Telegram message date in the database / Определяем дату последнего Telegram сообщения в БД
     stmt = select(func.max(RawMessage.date)).where(RawMessage.message_source_id == MessageSources.TELEGRAM.value)
     last_date = db_handler.session.execute(stmt).scalar()
-    if last_date is None:
-        last_date = datetime(2020, 1, 1)
+    if any([last_date is None, from_first]):
+        last_date = GlobalConst.start_date
     # Retrieving new messages from the Telegram bot / Получаем новые сообщения из Telegram бота
     print(f'Retrieving new Telegram messages since {last_date.strftime('%d-%b-%Y')}...')
     tg_messages = tg_handler.get_new_messages(tg_client, bot_name, last_date)
@@ -61,7 +67,8 @@ def telegram_messages_processing(tg_client: TelegramClient, bot_name: str, messa
                 # Parsing the vacancy message / Парсим сообщение с вакансией
                 parsing_data_list = TgVacancyParser().parse(text=db_raw_message.text)
                 for data_number, parsing_data in enumerate(parsing_data_list):
-                    # Creating or finding a job vacancy object on the site / Создаем или получаем экземпляр объявления о вакансии на сайте
+                    # Creating or finding a job vacancy object on the site
+                    # Создаем или получаем экземпляр объявления о вакансии на сайте
                     db_vacancy_web, added = db_handler.upsert_record(VacancyWeb,
                                                                      {'url': parsing_data.get(
                                                                          VacancyAttrs.URL.attr_id)}, {})
@@ -85,7 +92,8 @@ def telegram_messages_processing(tg_client: TelegramClient, bot_name: str, messa
                     db_vacancy.vacancy_web.append(db_vacancy_web)
                     db_raw_message.vacancy.append(db_vacancy)
                     for attr_id, attr_value in parsing_data.items():
-                        # Creating or finding a attribute vacancy object / Создаем или получаем объекты аттрибутов вакансии
+                        # Creating or finding a attribute vacancy object
+                        # Создаем или получаем объекты аттрибутов вакансии
                         db_attr, added = db_handler.upsert_record(VacancyData,
                                                                   {'attr_name_id': attr_id, 'attr_value': attr_value},
                                                                   {'attr_source_id': MessageSources.TELEGRAM.value})
@@ -113,7 +121,8 @@ def telegram_messages_processing(tg_client: TelegramClient, bot_name: str, messa
     return messages_counter
 
 
-def email_messages_processing(imap_client: IMAPClient, folder_name: str, messages_counter: Counter) -> Counter:
+def email_messages_processing(imap_client: IMAPClient, folder_name: str, from_first: bool,
+                              messages_counter: Counter) -> Counter:
     """
     Receiving and processing new messages from a IMAP Email client
     Получение и обработка новых сообщений из IMAP Email клиента
@@ -130,8 +139,8 @@ def email_messages_processing(imap_client: IMAPClient, folder_name: str, message
     # Determine the last Email message date in the database / Определяем дату последнего Email сообщения в базе данных
     stmt = select(func.max(RawMessage.date)).where(RawMessage.message_source_id == MessageSources.EMAIL.value)
     last_date = db_handler.session.execute(stmt).scalar()
-    if last_date is None:
-        last_date = datetime(2020, 1, 1).strftime('%d-%b-%Y')
+    if any([last_date is None, from_first]):
+        last_date = GlobalConst.start_date.strftime('%d-%b-%Y')
     # Retrieving new email messages / Получаем новые сообщения электронной почты
     print(f'Retrieving new Email messages since {last_date}...')
     email_messages = get_email_list(imap_client=imap_client, folder_name=folder_name, last_date=last_date)
@@ -163,7 +172,8 @@ def email_messages_processing(imap_client: IMAPClient, folder_name: str, message
                 if db_raw_message.date > datetime(2025, 1, 24).astimezone():
                     parsing_data = EmailVacancyParserVer1().parse(html=db_raw_message.html)
                 for data_number, parsing_data in enumerate(parsing_data):
-                    # Creating or finding a job vacancy object on the site / Создаем или получаем объект объявления о вакансии на сайте
+                    # Creating or finding a job vacancy object on the site
+                    # Создаем или получаем объект объявления о вакансии на сайте
                     db_vacancy_web, added = db_handler.upsert_record(VacancyWeb, {'url': parsing_data.get(
                         VacancyAttrs.URL.attr_id)}, {})
                     # Если вакансия обновлена, обнуляем HTML вакансии на сайте для последующего перезапроса и разбора
@@ -190,7 +200,8 @@ def email_messages_processing(imap_client: IMAPClient, folder_name: str, message
                     db_vacancy.vacancy_web.append(db_vacancy_web)
                     db_raw_message.vacancy.append(db_vacancy)
                     for attr_id, attr_value in parsing_data.items():
-                        # Creating or finding a attribute vacancy object / Создаем или получаем объекты аттрибутов вакансии
+                        # Creating or finding a attribute vacancy object
+                        # Создаем или получаем объекты аттрибутов вакансии
                         db_attr, added = db_handler.upsert_record(VacancyData,
                                                                   {'attr_name_id': attr_id, 'attr_value': attr_value},
                                                                   {'attr_source_id': MessageSources.EMAIL.value})
@@ -266,19 +277,22 @@ def web_vacancy_fetching(messages_counter: Counter) -> Counter:
     return messages_counter
 
 
-def web_vacancy_parsing(messages_counter: Counter) -> Counter:
+def web_vacancy_parsing(from_date: datetime | None, messages_counter: Counter) -> Counter:
     """
     Parsing new vacancy messages from a web site
     Парсинг новых сообщений о вакансиях с сайта
     """
 
+    if from_date is None:
+        from_date = GlobalConst.start_date.replace(year=GlobalConst.start_date.year + 1000)
     stmt = (select(VacancyWeb, Vacancy, RawMessage.date)
             .join(Vacancy, VacancyWeb.vacancy_id == Vacancy.id)
             .join(RawMessage, Vacancy.raw_message_id == RawMessage.id)
             ).where(and_(VacancyWeb.status_code == http.HTTPStatus.OK,
-                         or_(VacancyWeb.parsing_date.is_(None), VacancyWeb.parsing_date < VacancyWeb.last_check),
-                         # func.date(RawMessage.date) >= '2025-01-01'
-                         )).order_by(RawMessage.date)
+                         or_(VacancyWeb.parsing_date.is_(None),
+                             VacancyWeb.parsing_date < VacancyWeb.last_check,
+                             RawMessage.date >= from_date)),
+                    ).order_by(RawMessage.date)
     processing_items = db_handler.session.execute(stmt).mappings().all()
     desc = 'Processing Website job posting'
     for item in tqdm(processing_items, desc=desc, ncols=80 + len(desc)):
@@ -304,19 +318,27 @@ def web_vacancy_parsing(messages_counter: Counter) -> Counter:
 
 
 def main():
+    """
+    Main function for receiving, processing and saving job posting messages from Telegram, Email and web site to the DB
+    Основная функция для получения, обработки и сохранения в БД сообщений о вакансиях из Telegram бота, Email и c сайта
+    Returns:
+        None
+    """
+
     # Loading confidential Telegram API parameters / Загрузка конфиденциальных параметров Telegram API
     private_settings = dotenv_values(GlobalConst.private_settings_file)
     # Initializing the message counter for all types / Инициализация счетчика сообщений всех типов
     messages_counter = Counter()
 
-    # Creating a client for working with Telegram / Создание клиента для работы с Telegram
-    tg_client = tg_handler.init_tg_client(private_settings['APP_API_ID'], private_settings['APP_API_HASH'],
-                                          private_settings['PHONE'], private_settings['TELEGRAM_PASSWORD'])
-    # Retrieving, processing and saving to database new Telegram messages
-    # Получение, обработка и сохранение в базе данных новых сообщений Telegram
-    with db_handler.session.begin():
-        messages_counter = telegram_messages_processing(tg_client, private_settings['BOT_NAME'], messages_counter)
-    tg_handler.cleanup_loop(tg_client)
+    # # Creating a client for working with Telegram / Создание клиента для работы с Telegram
+    # tg_client = tg_handler.init_tg_client(int(private_settings['APP_API_ID']), private_settings['APP_API_HASH'],
+    #                                       private_settings['PHONE'], private_settings['TELEGRAM_PASSWORD'])
+    # # Retrieving, processing and saving to database new Telegram messages
+    # # Получение, обработка и сохранение в базе данных новых сообщений Telegram
+    # with db_handler.session.begin():
+    #     messages_counter = telegram_messages_processing(tg_client, private_settings['BOT_NAME'], False,
+    #                                                     messages_counter)
+    # tg_handler.cleanup_loop(tg_client)
 
     # Creating a client for working with IMAP / Создание клиента для работы с IMAP
     imap_client = init_imap_client(private_settings['IMAP_HOST'], int(private_settings['IMAP_PORT']), 10,
@@ -324,12 +346,16 @@ def main():
     # Retrieving, processing and saving to database new Email messages
     # Получение, обработка и сохранение в базе данных новых Email сообщений
     with db_handler.session.begin():
-        messages_counter = email_messages_processing(imap_client, private_settings['FOLDER_NAME'], messages_counter)
+        messages_counter = email_messages_processing(imap_client, private_settings['FOLDER_NAME'], False,
+                                                     messages_counter)
 
     # Получение, обработка и сохранение в базе данных новых сообщений о вакансиях с сайта
     with db_handler.session.begin():
         messages_counter = web_vacancy_fetching(messages_counter)
-        messages_counter = web_vacancy_parsing(messages_counter)
+    with db_handler.session.begin():
+        # parse_from_date = None
+        parse_from_date = datetime(2020, 1, 1)
+        messages_counter = web_vacancy_parsing(from_date=parse_from_date, messages_counter=messages_counter)
 
     print()
     print('   Report:')

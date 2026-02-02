@@ -29,6 +29,7 @@ subscription = ["__Subscription:__", "Subscription:", "__Подписка:__", "
 # Определение разделителя между несколькикми вакансиями в одном сообщении
 splitter_pattern = ["Subscription", "__Подписка:__", "Подписка"]
 
+
 # Сигнатуры для определения параметров статистики из текста вакансий Telegram, class TgStatisticTextSigns
 [tg_statistic_text_signs]
 # Определение количества вакансий за последние 30 дней
@@ -44,6 +45,7 @@ responses_to_vacancies = ["Відгуків на одну вакансію", "О
 vacancies_per_week = ["Вакансій", "Вакансий", "Jobs"]
 # Кандидатов за неделю
 candidates_per_week = ["Кандидатів", "Кандидатов", "Candidates"]
+
 
 # regex_patterns, class RegexPatterns
 # Одиночные кавычки в TOML файле лучше применять только для регулярных выражений, это аналог r-строк в Python
@@ -143,7 +145,7 @@ second_tech_stack_selector = "div.text-secondary div.col"
 job_card_selector = "aside div.card.card-body"
 
 
-# Мусорные фрагменты текста для удаления из параметров вакансий с сайта, class WebVacancyRepls
+# Фрагменты текста для удаления из параметров вакансий с сайта, class WebVacancyRepls
 [web_vacancy_repls]
 # Замена или удаление лишних подстрок из опыта соискателя
 [web_vacancy_repls.experience]
@@ -171,8 +173,9 @@ remove = ["Upper Intermediate", "Upper-Intermediate", "Вище середньо
     "Середній", "Beginner", "Advanced", "Вільний", "Немає", "-", "–", ]
 # Замена или удаление лишних подстрок из специфики работы
 [web_vacancy_repls.employment]
-repl = [{ "Full Remote" = ["Тільки віддалено"] }, { "Office, Remote" = ["Office or Remote", "Офіс або віддалено"] },
-    { "Office" = ["Office Work", "Тільки офіс"] }, { "Part-time" = ["Неповна / Парт-тайм"] },
+repl = [{ "Full Remote" = ["Тільки віддалено", "Віддалена робота"] },
+    { "Office, Remote" = ["Office or Remote", "Офіс або віддалено"] },
+    { "Office" = ["Office Work", "Тільки офіс", "Офіс"] }, { "Part-time" = ["Неповна / Парт-тайм"] },
     { "Hybrid Remote" = ["Гібридний формат роботи", "В офісі та віддалено"] }]
 remove = ["Employment:", "Зайнятість:"]
 # Замена или удаление лишних подстрок из домена компании
@@ -180,7 +183,7 @@ remove = ["Employment:", "Зайнятість:"]
 remove = ["Domain:", "Домен:"]
 # Замена или удаление лишних подстрок из типа компании
 [web_vacancy_repls.company_type]
-repl = [{ "Product" = ["Продукт"] }, { "Outsource/Outstaff Agency" = ["Agency"] }, { "Outsource" = ["Аутсорс"] },
+repl = [{ "Product" = ["Продукт"] }, { "Outsource/Outstaff Agency" = ["Agency", "Агенція"] }, { "Outsource" = ["Аутсорс"] },
     { "Outstaff" = ["Аутстаф"] }, { "Startup" = ["Стартап"] }]
 # Замена или удаление лишних подстрок из местонахождения офисов компании
 [web_vacancy_repls.offices]

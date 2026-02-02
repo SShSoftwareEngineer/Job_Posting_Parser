@@ -6,7 +6,7 @@ from telethon import TelegramClient
 from telethon.tl.custom import Message
 
 
-def init_tg_client(api_id, api_hash, phone, password=None) -> TelegramClient:
+def init_tg_client(api_id: int, api_hash: str, phone: str, password: str = None) -> TelegramClient:
     """
     Инициализирует клиент Telegram
     """

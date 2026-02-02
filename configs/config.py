@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum, StrEnum
 from pathlib import Path
 
@@ -9,10 +10,13 @@ class GlobalConst:
         'configs') / '.env'  # Confidential data file name / Имя файла с конфиденциальными данными
     database_file = 'full_vacancies.db'  # SQLite file name / Имя файла SQLite базы данных
     excel_file = 'exported_data.xlsx'  # Exported MS Excel file name / Имя экспортируемого файла MS Excel
-    parse_config_file = 'config.toml'  # Configuration data file / Имя файла конфигурации
+    parse_config_file = Path('config.toml')  # Configuration data file / Имя файла конфигурации
     timeout_seconds = 10  # Timeout for HTTP requests in seconds / Таймаут для HTTP запросов в секундах
-    max_concurrent_requests = 10  # Maximum number of concurrent HTTP requests / Максимальное количество одновременных HTTP запросов
+    # Maximum number of concurrent HTTP requests
+    # Максимальное количество одновременных HTTP запросов
+    max_concurrent_requests = 10
     user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'  # User-Agent for HTTP requests / User-Agent для HTTP запросов
+    start_date = datetime(2020, 1, 1)
 
 
 class MessageSources(Enum):
@@ -177,25 +181,26 @@ class VacancyAttrs(Enum):
                 result = item.name.lower()
         return result
 
+
 class ReportLabel(StrEnum):
-    EMAIL_MESS="Email messages received"
-    EMAIL_RAW="Email RAW messages processed"
-    EMAIL_RAW_ADD="Email RAW messages added"
-    EMAIL_RAW_UPD="Email RAW messages updated"
-    EMAIL_VAC="Email vacancy messages processed"
-    EMAIL_VAC_ADD="Email vacancy messages added"
-    EMAIL_VAC_UPD="Email vacancy messages updated"
-    EMAIL_VAC_ERR="Email vacancy parsing errors"
+    EMAIL_MESS = "Email messages received"
+    EMAIL_RAW = "Email RAW messages processed"
+    EMAIL_RAW_ADD = "Email RAW messages added"
+    EMAIL_RAW_UPD = "Email RAW messages updated"
+    EMAIL_VAC = "Email vacancy messages processed"
+    EMAIL_VAC_ADD = "Email vacancy messages added"
+    EMAIL_VAC_UPD = "Email vacancy messages updated"
+    EMAIL_VAC_ERR = "Email vacancy parsing errors"
     EMAIL_URL_ADD = "Email vacancy URL added"
-    EMAIL_URL_UPD="Email vacancy URL updated"
+    EMAIL_URL_UPD = "Email vacancy URL updated"
     TG_MESS = "Telegram messages received"
-    TG_RAW="Telegram RAW vacancy messages processed"
-    TG_VAC="Telegram Vacancy messages processed"
-    TG_STAT="Telegram Statistic messages processed"
-    TG_SERV="Telegram Service messages processed"
+    TG_RAW = "Telegram RAW vacancy messages processed"
+    TG_VAC = "Telegram Vacancy messages processed"
+    TG_STAT = "Telegram Statistic messages processed"
+    TG_SERV = "Telegram Service messages processed"
     TG_ERR = "Telegram message parsing errors"
     TG_URL_ADD = "Telegram vacancy URL added"
-    TG_URL_UPD="Telegram vacancy URL updated"
+    TG_URL_UPD = "Telegram vacancy URL updated"
     WEB_VAC = "Web vacancy processed"
     WEB_ERR = "Web vacancy parsing errors"
 

@@ -22,7 +22,14 @@ dependencies = [
     "dotenv (>=0.9.9,<0.10.0)",
     "pandas (>=3.0.0,<4.0.0)",
     "pylint (>=4.0.4,<5.0.0)",
-    "mypy (>=1.19.1,<2.0.0)"
+    "mypy (>=1.19.1,<2.0.0)",
+    "radon (>=6.0.1,<7.0.0)",
+    "lxml-stubs (>=0.5.1,<0.6.0)",
+    "pandas-stubs (>=2.3.3.260113,<3.0.0.0)",
+    "types-greenlet (>=3.3.0.20251206,<4.0.0.0)",
+    "types-html5lib (>=1.1.11.20251117,<2.0.0.0)",
+    "types-python-dateutil (>=2.9.0.20260124,<3.0.0.0)",
+    "types-tqdm (>=4.67.0.20250809,<5.0.0.0)"
 ]
 
 
@@ -31,6 +38,10 @@ requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 #----- PyLint config -----
+
+[tool.pylint.basic]
+# Разрешаем TypeVar именовать в стиле CamelCase с длинными именами
+typevar-rgx = "^[A-Z][a-zA-Z0-9]+$"
 
 [tool.pylint.format]
 max-line-length = 120
