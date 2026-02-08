@@ -48,6 +48,26 @@ max-line-length = 120
 
 #----- MyPy config -----
 
+[tool.mypy]
+# Указываем MyPy использовать плагин Pydantic для корректной проверки моделей
+plugins = ["pydantic.mypy"]
+
+# Настройки для плагина Pydantic
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+# Базовые настройки строгости
+warn_return_any = true
+warn_unused_configs = true
+check_untyped_defs = true  # Проверять тела функций без аннотаций типов
+
+# Игнорируем библиотеки без файлов типов (Stubs)
 [[tool.mypy.overrides]]
-module = "telethon.*"
+module = [
+    "telethon.*",
+    "imapclient.*",
+    "aiohttp.*"  # Иногда тоже может капризничать без типов
+]
 ignore_missing_imports = true

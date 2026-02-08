@@ -218,8 +218,7 @@ def load_config() -> Config:
         raise SystemExit(1) from err
 
 
-# Creating a general configuration object
-# Создаем единый объект конфигурации
+# Creating a general configuration object / Создаем единый объект конфигурации
 config = load_config()
 
 if __name__ == '__main__':

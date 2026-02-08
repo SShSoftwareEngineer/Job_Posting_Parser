@@ -4,13 +4,14 @@ Module for working with IMAP Email
 """
 
 from email.header import decode_header
-from imapclient import IMAPClient
+from imapclient import IMAPClient  # type: ignore[import-untyped]
 
 
 def init_imap_client(host: str, port: int, timeout: float, username: str, password: str) -> IMAPClient:
     """
     Initializes IMAP Email client
     Инициализирует клиент IMAP Email
+
     Attributes:
         host (str): IMAP server host.
         port (int): IMAP server port.
@@ -30,6 +31,7 @@ def decode_email_field(field_value):
     """
     Function for decoding email fields
     Функция декодирования полей письма
+
     Attributes:
         field_value: Encoded email field value.
     Returns:
@@ -49,8 +51,9 @@ def decode_email_field(field_value):
 
 def get_email_list(imap_client: IMAPClient, folder_name: str, last_date: str) -> dict:
     """
-    Получение списка писем из IMAP Email аккаунта
     Function to get a list of emails from an IMAP Email account
+    Получение списка писем из IMAP Email аккаунта
+
     Attributes:
         imap_client (IMAPClient): Initialized IMAP client.
         folder_name (str): Name of the email folder to fetch emails from.
