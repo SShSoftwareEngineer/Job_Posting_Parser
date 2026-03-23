@@ -1,140 +1,174 @@
 # Job Posting Parser
 
-<details open>
-  <summary>🇬🇧 English version</summary>
+Multi-source job market intelligence system for data-driven career insights.
 
-### Project Description
+## Overview
 
-This project is designed to automate the process of parsing job postings from Telegram channels. The script
-extracts key information from messages, follows hyperlinks to obtain full text of job announcements, retrieves
-additional vacancy details, and stores data in a database. The solution is used for statistical analysis of job
-market trends, vacancies and candidate requirements.
+Automated data collection and analysis pipeline that aggregates job postings from Telegram channels and email newsletters, extracts comprehensive vacancy details from source websites, and enables multi-dimensional market analysis.
 
-### Features
+## Features
 
-Automated Parsing – Extracts key job details from Telegram messages.  
-Link Following – Retrieves full job descriptions from external sources.  
-Data Storage & Analysis – Saves extracted data into a database SQLite for easy access and analysis.  
-Market Trend Analysis – Provides insights into job market trends and candidate requirements.  
-Export to Excel - Allows exporting parsed data to Excel for further processing.
+### Multi-Source Data Collection
 
-### Tech Stack
+- **Telegram channels**: Asynchronous parsing via Telethon API
+- **Email newsletters**: IMAP-based extraction via IMAPClient
 
-![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
-Python - Core programming language.  
-![Aiohttp](https://img.shields.io/badge/aiohttp-%232C5bb4.svg?style=for-the-badge&logo=aiohttp&logoColor=white)
-AIOHTTP - Asynchronous HTTP client for fetching web content.  
-![Pandas](https://img.shields.io/badge/pandas-%23150458.svg?style=for-the-badge&logo=pandas&logoColor=white)
-Pandas - Data manipulation and analysis.  
-![SQLite](https://img.shields.io/badge/sqlite-%2307405e.svg?style=for-the-badge&logo=sqlite&logoColor=white)
-SQLite - Database for storing parsed data.  
-![Microsoft Excel](https://img.shields.io/badge/Microsoft_Excel-217346?style=for-the-badge&logo=microsoft-excel&logoColor=white)
-MS Excel - Analysis and visualization.  
-SQLAlchemy - ORM for database interactions.  
-Telethon - Library for interacting with Telegram API.  
-BeautifulSoup - HTML parsing for extracting job details.    
-RE (Regular Expressions) - Text pattern matching.  
-Pydantic - Configuration File Validation.  
-OpenPyXL - Excel file manipulation.
+### Two-Stage Extraction
 
-### Installation
+1. **Initial parsing**: Extract basic info from Telegram posts and emails
+2. **Deep scraping**: Follow links to source websites for full vacancy details
+   - BeautifulSoup for HTML parsing
+   - AIOHTTP for async HTTP requests
+   - AsyncIO Semaphore for rate limiting (prevents blocking)
 
-1. Clone the repository:  
-   git clone https://github.com/yourusername/job-posting-parser.git  
-   cd job-posting-parser
-2. Install the dependencies:  
-   pip install -r requirements.txt  
-3. Set up your Telegram API credentials in a .env file:    
-   Create a new application on my.telegram.org.  
-   Add your API_ID, API_HASH and params to the .env file.
-4. Run the script:  
+### Comprehensive Data Extraction
+
+18+ parameters extracted per vacancy:
+
+| Category | Parameters                                                     |
+|----------|----------------------------------------------------------------|
+| **Position** | position, experience, employment case                          |
+| **Location** | location, offices, candidate locations (remote/relocation)     |
+| **Technical** | main technology, tech stack, languages                         |
+| **Compensation** | salary diapason                                                |
+| **Company** | company name, company type, domain                             |
+| **Content** | job description preview, job description full text, notes |
+| **Metadata** | URL (source link)                                              |
+
+### Data Processing & Storage
+
+- **Validation**: Pydantic schemas ensure data quality and type safety
+- **Storage**: SQLAlchemy ORM with SQLite (PostgreSQL-ready schema)
+- **Export**: Excel reports via openpyxl + Pandas for stakeholder analysis
+- **Filtering**: Query by any parameter combination for targeted insights
+
+### Performance & Reliability
+
+- **Async operations**: Concurrent data collection with AsyncIO
+- **Rate limiting**: Semaphore-based request throttling to avoid website blocks
+- **Error handling**: Graceful failures with retry mechanisms
+- **Data normalization**: Clean and consistent format across sources
+
+## Use Cases
+
+- 📊 **Salary analysis**: Understand market rates by role, experience, location
+- 🛠️ **Tech trends**: Identify most demanded technologies and skills
+- 🌍 **Location insights**: Remote vs on-site opportunities, relocation offers
+- 🏢 **Company research**: Analyze by company type (product/service/startup)
+- 📈 **Market dynamics**: Track changes over time, seasonal patterns
+- 🎯 **Job search**: Filter by multiple criteria to find ideal positions
+
+## Project Stats
+
+- **3,800+ job postings** analyzed
+- **2 data sources**: Telegram + Email
+- **18 parameters** extracted per vacancy
+- **Multi-dimensional** filtering and analysis
+
+## Tech Stack
+
+- **Data Collection**: 
+  - Telegram: Telethon, AsyncIO
+  - Email: IMAPClient
+  - Web: AIOHTTP, BeautifulSoup
+- **Data Processing**: 
+  - Validation: Pydantic
+  - Export: Pandas, openpyxl
+  - Parsing: Regular Expressions
+- **Storage**: SQLAlchemy ORM, SQLite (PostgreSQL-ready)
+- **Concurrency**: AsyncIO with Semaphore for rate limiting
+- **Language**: Python 3.9+
+
+
+## Installation
+
+### Setup
+
+1. **Clone the repository:**  
+   git clone https://github.com/SShSoftwareEngineer/Job_Posting_Parser.git  
+   cd Job_Posting_Parser
+
+2. **Install dependencies:**  
+   poetry install  
+   poetry shell
+
+3. **Configure credentials in a .env file**
+
+4. **Run the parser:**
    python job_posting_parser.py
 
-### Usage
+### Extracted Parameters Explained
 
-Run the script to start parsing job postings from Telegram channels.
-The script automatically analyzes new vacancies and saves the information in a structured form in the database.
+- **POSITION**: Job title (e.g., "Python Developer", "Data Engineer")
+- **EXPERIENCE**: Required years of experience
+- **MAIN_TECH**: Primary technology (Python, Java, etc.)
+- **TECH_STACK**: List of all required technologies
+- **LINGVO**: Required language skills (English, Ukrainian, etc.)
+- **SALARY_FROM / SALARY_TO**: Compensation range
+- **JOB_DESC_PREV**: Short description from initial post
+- **JOB_DESC**: Complete job description from source website
+- **EMPLOYMENT**: Employment type (full-time, part-time, contract)
+- **CANDIDATE_LOCATIONS**: Remote work, relocation options
+- **COMPANY**: Company name
+- **LOCATION**: Primary office location
+- **COMPANY_TYPE**: Product company, service/outsource, startup
+- **DOMAIN**: Business domain (FinTech, E-commerce, etc.)
+- **OFFICES**: List of office locations
+- **URL**: Link to full vacancy on website
+- **NOTES**: Additional information
 
-### Roadmap
+## Project Insights
 
-It is planned to use artificial intelligence for detailed analysis of information in job vacancies and labor market
-trends.
+This project demonstrates:
 
-### License
+- ✅ **Multi-source ETL**: Unified pipeline for different data sources
+- ✅ **Two-stage extraction**: Initial + deep scraping workflow
+- ✅ **Async programming**: Concurrent I/O with rate limiting
+- ✅ **Web scraping**: Robust HTML parsing with error handling
+- ✅ **Database design**: Normalized schema with 18 structured fields
+- ✅ **Scalability**: SQLite for development, PostgreSQL-ready for production
+- ✅ **Multi-dimensional analysis**: Complex filtering across multiple parameters
+
+## Roadmap
+
+### Planned Features
+
+- [ ] **PostgreSQL migration**: Production deployment with larger datasets
+- [ ] **Web dashboard**: Interactive UI with charts (Plotly/Dash)
+- [ ] **Advanced analytics**: Salary predictions, trend forecasting
+- [ ] **More sources**: LinkedIn, DOU, Indeed APIs
+- [ ] **ML-powered**: Automatic tech stack categorization, skill extraction
+
+### Under Consideration
+
+- Docker containerization for easy deployment
+- REST API for programmatic access
+- Scheduled cloud deployment (AWS Lambda/GCP Functions)
+- Integration with job application trackers
+
+## Why SQLite?
+
+**Current choice: SQLite**
+- Zero configuration, single file
+- Perfect for development and personal use
+- Handles 500+ vacancies efficiently
+
+**PostgreSQL ready:**
+- Schema designed for easy migration
+- Just change DATABASE_URL connection string
+- Planned for:
+  - Datasets >10K vacancies
+  - Multi-user access
+  - Production deployment
+
+## License
 
 This project is licensed under the MIT License.
 
-### Contact
+## Contact
 
-[shypulin@ukr.net](mailto:shypulin@ukr.net)
+**Sergiy Shypulin**
 
-</details>
-
-<details>
-  <summary>🇷🇺 Русская версия</summary>
-
-### Описание проекта
-
-Проект предназначен для автоматизации обработки рассылок с вакансиями из определенных Telegram-каналов. Скрипт
-извлекает ключевую информацию из сообщений, переходит по ссылкам для получения полных текстов объявлений,
-производит их парсинг и сохраняет данные в базу данных для дальнейшего анализа. Решение полезно для статистического
-анализа тенденций на рынке труда, вакансий и требований к кандидатам.
-
-### Функциональность
-
-Автоматический парсинг – Извлекает ключевые данные о вакансиях из сообщений в Telegram.  
-Переход по ссылкам – Получает полные тексты объявлений.  
-Сохранение и анализ данных – Сохраняет информацию в базу данных SQLite для удобного доступа и анализа.  
-Анализ рынка труда – Позволяет исследовать тенденции рынка вакансий.  
-Экспорт в Excel - Позволяет экспортировать данные в Excel для дальнейшей обработки.
-
-### Используемые технологии
-
-![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
-Python - Основной язык программирования.  
-![Aiohttp](https://img.shields.io/badge/aiohttp-%232C5bb4.svg?style=for-the-badge&logo=aiohttp&logoColor=white)
-AIOHTTP - Асинхронный HTTP-клиент для получения веб-контента.  
-![Pandas](https://img.shields.io/badge/pandas-%23150458.svg?style=for-the-badge&logo=pandas&logoColor=white)
-Pandas - Манипуляции и анализ данных.  
-![SQLite](https://img.shields.io/badge/sqlite-%2307405e.svg?style=for-the-badge&logo=sqlite&logoColor=white)
-SQLite - База данных для хранения извлеченной информации.  
-![Microsoft Excel](https://img.shields.io/badge/Microsoft_Excel-217346?style=for-the-badge&logo=microsoft-excel&logoColor=white)
-MS Excel - Анализ и визуализация.  
-SQLAlchemy - ORM для взаимодействия с базой данных.  
-Telethon - Библиотека для работы с API Telegram.  
-BeautifulSoup - Парсинг HTML для извлечения деталей вакансий.  
-RE (Регулярные выражения) - Поиск текстовых шаблонов.  
-Pydantic - Валидация файла конфигурации.  
-OpenPyXL - Работа с файлами Excel.
-
-### Установка
-
-1. Клонируйте репозиторий:  
-   git clone https://github.com/yourusername/job-posting-parser.git  
-   cd job-posting-parser
-2. Настройте учетные данные API Telegram:  
-   pip install -r requirements.txt
-3. Настройте API Telegram в файле .env:  
-   Создайте новое приложение на my.telegram.org.  
-   Добавьте ваш API_ID, API_HASH и другие параметры в файл .env.
-4. Запустите скрипт:  
-   python job_posting_parser.py
-
-### Использование
-
-Запустите скрипт, чтобы начать парсинг вакансий из каналов Telegram.
-Скрипт автоматически анализирует новые вакансии и сохраняет информацию в структурированном виде в базе данных.
-
-### Планы по развитию
-
-Планируется использовать искусственный интеллект для детального анализа информации в вакансии и тенденций рынка труда.
-
-### Лицензия
-
-Этот проект лицензирован под MIT License.
-
-### Контакты
-
-[shypulin@ukr.net](mailto:shypulin@ukr.net)
-
-</details>
+- Email: [s.shypulin@gmail.com](mailto:s.shypulin@gmail.com)
+- LinkedIn: [linkedin.com/in/sergiy-shypulin](https://linkedin.com/in/sergiy-shypulin)
+- GitHub: [@SShSoftwareEngineer](https://github.com/SShSoftwareEngineer)

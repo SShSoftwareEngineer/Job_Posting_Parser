@@ -11,6 +11,8 @@ import urllib.parse
 from abc import ABC, abstractmethod
 from collections import ChainMap
 from email import message_from_bytes, policy
+from typing import Any
+
 from bs4 import BeautifulSoup
 from config_handler import config, Repls
 from configs.config import MessageSources, MessageTypes, VacancyAttrs
@@ -18,17 +20,19 @@ from email_handler import decode_email_field
 from utils import str_to_numeric, parse_date_string, html_to_text
 
 
-class MessageParser(ABC): # pylint: disable=too-few-public-methods
+class MessageParser(ABC):  # pylint: disable=too-few-public-methods
     """
-    Абстрактный класс, возвращает словарь с результатами парсинга
+    Абстрактный класс, реализация возвращает словарь с результатами парсинга
     """
 
     @abstractmethod
-    def parse(self, **options) -> dict:
-        pass
+    def parse(self, **options) -> Any:
+        """
+        Абстрактный метод, реализация возвращает словарь с результатами парсинга
+        """
 
 
-class TgRawParser(MessageParser): # pylint: disable=too-few-public-methods
+class TgRawParser(MessageParser):  # pylint: disable=too-few-public-methods
     """
     Класс для парсинга исходных сообщений Telegram, возвращает словарь с результатами парсинга
     """
@@ -38,7 +42,7 @@ class TgRawParser(MessageParser): # pylint: disable=too-few-public-methods
         Функция для парсинга исходных сообщений Telegram, возвращает словарь с результатами парсинга
         """
 
-        message = options.get('message',None) # type(message) == Message
+        message = options.get('message', None)  # type(message) == Message
         if message is None:
             return {}
         if hasattr(message, 'text'):
@@ -84,20 +88,20 @@ class TgVacancyParser(MessageParser):
         text = text.replace('Possible_Vacancy_Splitter', '\n')
         return text.split('\n\n')
 
-    def parse(self, **options) -> list[dict]: # pylint: disable=too-many-locals
+    def parse(self, **options) -> list[dict]:  # pylint: disable=too-many-locals
         """
         Функция для парсинга списка сообщений Telegram с вакансиями, возвращает список словарей с результатами парсинга
         """
 
-        parsed_vacancies_data = []
-        text = options.get('text',None) # type(text) == str
+        parsed_vacancies_data: list[dict] = []
+        text = options.get('text', None)  # type(text) == str
         if not text:
             return parsed_vacancies_data
         # Разделение текста сообщения Telegram с несколькими вакансиями на отдельные части по двойным переносам строк
         message_parts = self.vacancy_split(text)
         # Обработка каждой части текста сообщения
         for message_part in message_parts:
-            parsed_data = {}
+            parsed_data: dict[int | str, str | int | float | None] = {}
             message_part = message_part.replace('\n\n', '\n').strip()
             # Извлечение строк с необходимой информацией / Extracting lines with the necessary information
             strings = message_part.split('\n')
@@ -107,21 +111,21 @@ class TgVacancyParser(MessageParser):
             # Extracting the vacancy description /Извлечение описания вакансии
             parsed_data[VacancyAttrs.JOB_DESC_PREV.attr_id] = '\n'.join(strings[2:-2] if len(strings) > 4 else [])
             # Extracting the position and company name / Извлечение позиции, названия компании
-            matching = re.split(f"{'|'.join(config.tg_vacancy_text_signs.position_company)}", str_1)
-            if matching:
-                parsed_data[VacancyAttrs.POSITION.attr_id] = matching[0]
-                if len(matching) > 1:
-                    parsed_data[VacancyAttrs.COMPANY.attr_id] = matching[1]
+            matching_pcn = re.split(f"{'|'.join(config.tg_vacancy_text_signs.position_company)}", str_1)
+            if matching_pcn:
+                parsed_data[VacancyAttrs.POSITION.attr_id] = matching_pcn[0]
+                if len(matching_pcn) > 1:
+                    parsed_data[VacancyAttrs.COMPANY.attr_id] = matching_pcn[1]
             else:
                 parsed_data[VacancyAttrs.POSITION.attr_id] = str_1
             # Extracting the company location and experience requirements / Извлечение локации компании, опыта работы
             location_experience_signs = config.tg_vacancy_text_signs.location_experience
-            matching = re.search(
+            matching_cle = re.search(
                 f'(.+), {config.regex_patterns.numeric}? ?({"|".join(location_experience_signs)})', str_2)
-            if matching:
-                parsed_data[VacancyAttrs.LOCATION.attr_id] = matching.group(1)
-                parsed_data[VacancyAttrs.EXPERIENCE.attr_id] = str_to_numeric(matching.group(2))
-                if matching.group(2) is None and matching.group(3) is not None:
+            if matching_cle:
+                parsed_data[VacancyAttrs.LOCATION.attr_id] = matching_cle.group(1)
+                parsed_data[VacancyAttrs.EXPERIENCE.attr_id] = str_to_numeric(matching_cle.group(2))
+                if matching_cle.group(2) is None and matching_cle.group(3) is not None:
                     parsed_data[VacancyAttrs.EXPERIENCE.attr_id] = 0
             # Extracting salary information / Извлечение информации о зарплате
             salary_min, salary_max = get_salary(str_2)
@@ -130,13 +134,13 @@ class TgVacancyParser(MessageParser):
             if salary_max:
                 parsed_data[VacancyAttrs.SALARY_TO.attr_id] = salary_max
             # Extracting full vacancy text URL on the website / Извлечение URL вакансии на сайте
-            matching = re.search(config.regex_patterns.url, message_part)
-            if matching:
-                parsed_data[VacancyAttrs.URL.attr_id] = matching.group(0)
+            matching_url = re.search(config.regex_patterns.url, message_part)
+            if matching_url:
+                parsed_data[VacancyAttrs.URL.attr_id] = matching_url.group(0)
             # Extracting subscription to job vacancy messages / Извлечение информации о подписке рассылки
-            matching = re.sub(f'{"|".join(config.tg_vacancy_text_signs.subscription)}', '', str_last)
-            if matching:
-                parsed_data[VacancyAttrs.SUBSCRIPTION.attr_id] = matching.strip('\"\' *_`')
+            matching_sbs = re.sub(f'{"|".join(config.tg_vacancy_text_signs.subscription)}', '', str_last)
+            if matching_sbs:
+                parsed_data[VacancyAttrs.SUBSCRIPTION.attr_id] = matching_sbs.strip('\"\' *_`')
             # Подсчет успешно распарсенных полей / Counting successfully parsed fields
             parsed_field_ids = [VacancyAttrs.POSITION.attr_id, VacancyAttrs.JOB_DESC_PREV.attr_id,
                                 VacancyAttrs.LOCATION.attr_id, VacancyAttrs.EXPERIENCE.attr_id,
@@ -176,7 +180,7 @@ class TgStatisticParser(MessageParser):
         Функция парсинга сообщений Telegram со статистикой, возвращает словарь с результатами парсинга
         """
 
-        text = options.get('text', None) # type(text) == str
+        text = options.get('text', None)  # type(text) == str
         if not text:
             return {}
         # Extracting numerical values / Извлечение числовых значений
@@ -202,18 +206,18 @@ class TgStatisticParser(MessageParser):
         return parsed_data
 
 
-class EmailRawParser(MessageParser): # pylint: disable=too-few-public-methods
+class EmailRawParser(MessageParser):  # pylint: disable=too-few-public-methods
     """
     Класс для парсинга исходных сообщений Email, возвращает словарь с результатами парсинга
     """
 
-    def parse(self, **options) -> dict: # pylint: disable=too-many-branches
+    def parse(self, **options) -> dict:  # pylint: disable=too-many-branches
         """
         Функция для парсинга исходных сообщений Email, возвращает словарь с результатами парсинга
         """
 
-        email_uid = options.get('email_uid', None) # type(email_uid) == int
-        email_body = options.get('email_body', None) # type(email_body) == dict
+        email_uid = options.get('email_uid', None)  # type(email_uid) == int
+        email_body = options.get('email_body', None)  # type(email_body) == dict
         if not all([email_uid, email_body]):
             return {}
         # Получаем объект сообщения электронной почты (email.message.Message или EmailMessage)
@@ -267,18 +271,18 @@ class EmailRawParser(MessageParser): # pylint: disable=too-few-public-methods
         return parsed_data
 
 
-class EmailVacancyParserVer0(MessageParser): # pylint: disable=too-few-public-methods
+class EmailVacancyParserVer0(MessageParser):  # pylint: disable=too-few-public-methods
     """
     Класс для парсинга HTML содержимого сообщений Email с вакансиями, возвращает словарь с результатами парсинга
     Формат сообщений до 2025-01-24 включительно
     """
 
-    def parse(self, **options) -> list[dict]: # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+    def parse(self, **options) -> list[dict]:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
         """
         Функция для парсинга HTML содержимого сообщений Email с вакансиями, возвращает словарь с результатами парсинга
         """
 
-        parsed_vacancies_data = []
+        parsed_vacancies_data: list[dict] = []
         html = options.get('html', None)  # type(html) == str
         if not html:
             return parsed_vacancies_data
@@ -293,7 +297,7 @@ class EmailVacancyParserVer0(MessageParser): # pylint: disable=too-few-public-me
                 message_parts = soup.find_all(splitter.tag, **attr_checker(splitter.attr_name, splitter.attr_value))
         # Обработка каждой части HTML сообщения с вакансией
         for message_part in message_parts:
-            parsed_data = {}
+            parsed_data: dict[int | str, str | int | float | None] = {}
             # Извлечение позиции и URL
             sel = sels.position_url_selector
             position_url_tag = message_part.find(sel.tag, **attr_checker(sel.attr_name, sel.attr_value))
@@ -357,19 +361,19 @@ class EmailVacancyParserVer0(MessageParser): # pylint: disable=too-few-public-me
         return parsed_vacancies_data
 
 
-class EmailVacancyParserVer1(MessageParser): # pylint: disable=too-few-public-methods
+class EmailVacancyParserVer1(MessageParser):  # pylint: disable=too-few-public-methods
     """
     Класс для парсинга HTML содержимого сообщений Email с вакансиями, возвращает словарь с результатами парсинга
     Формат сообщений после 2025-01-24
     """
 
-    def parse(self, **options) -> list[dict]: # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+    def parse(self, **options) -> list[dict]:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
         """
         Функция для парсинга HTML содержимого сообщений Email с вакансиями, возвращает словарь с результатами парсинга
         Формат сообщений после 2025-01-24
         """
 
-        parsed_vacancies_data = []
+        parsed_vacancies_data: list[dict] = []
         html = options.get('html', None)  # type(html) == str
         if not html:
             return parsed_vacancies_data
@@ -383,7 +387,7 @@ class EmailVacancyParserVer1(MessageParser): # pylint: disable=too-few-public-me
         message_parts = soup.find_all(splitter.tag, **attr_checker(splitter.attr_name, splitter.attr_value))
         # Обработка каждой части HTML сообщения с вакансией
         for message_part in message_parts:
-            parsed_data = {}
+            parsed_data: dict[int | str, str | int | float | None] = {}
             # Извлечение позиции и URL
             position_url_tag = message_part.select_one(sels.position_url_selector)
             if position_url_tag:
@@ -458,12 +462,12 @@ class EmailVacancyParserVer1(MessageParser): # pylint: disable=too-few-public-me
         return parsed_vacancies_data
 
 
-class WebVacancyParser(MessageParser): # pylint: disable=too-few-public-methods
+class WebVacancyParser(MessageParser):  # pylint: disable=too-few-public-methods
     """
     Класс для парсинга объявления о вакансии с сайта, возвращает словарь с результатами парсинга
     """
 
-    def parse(self, **options) -> dict: # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+    def parse(self, **options) -> dict:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
         """
         Класс для парсинга объявления о вакансии с сайта, возвращает словарь с результатами парсинга
         """
@@ -479,7 +483,7 @@ class WebVacancyParser(MessageParser): # pylint: disable=too-few-public-methods
                     result_dict.update({table_cols[0].get_text(strip=True): table_cols[1].get_text(strip=True)})
             return result_dict
 
-        parsed_data = {}
+        parsed_data: dict[int | str, str | int | float | None] = {}
         html = options.get('html', None)  # type(html) == str
         if not html:
             return parsed_data
@@ -746,8 +750,11 @@ def get_real_url(mandrillapp_url: str) -> str | None:
             # Декодируем base64. Пробуем оба варианта декодирования
             try:
                 decoded_bytes = base64.urlsafe_b64decode(base64_data)
-            except Exception:
-                decoded_bytes = base64.b64decode(base64_data)
+            except binascii.Error:
+                try:
+                    decoded_bytes = base64.b64decode(base64_data)
+                except binascii.Error as err:
+                    raise ValueError(f"Invalid base64 data: {base64_data}") from err
             decoded_str = decoded_bytes.decode('utf-8')
             # Парсим JSON и извлекаем вложенный JSON из поля 'p'
             json_data = json.loads(decoded_str)
@@ -769,7 +776,7 @@ def attr_checker(attr_name: str, required_attrs: list[str]) -> dict:
     """
     if attr_name.lower() == 'style':
 
-        def checker(value: str):
+        def checker(value: Any) -> Any:
             if not value:
                 return False
             # Разбиваем значения в строке стиля на отдельные стили
@@ -779,7 +786,7 @@ def attr_checker(attr_name: str, required_attrs: list[str]) -> dict:
 
     elif attr_name.lower() in ('class', 'class_'):
 
-        def checker(value):
+        def checker(value: Any) -> Any:
             if not value:
                 return False
             # class_ в виде списка, разбиваем значения на отдельные классы
@@ -792,7 +799,7 @@ def attr_checker(attr_name: str, required_attrs: list[str]) -> dict:
 
     else:
 
-        def checker(value):
+        def checker(value: Any) -> Any:
             if not value:
                 return False
             return all(req_val in str(value) for req_val in required_attrs)

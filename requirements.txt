@@ -12,4 +12,3 @@ python-dateutil
 IMAPClient
 dotenv
 python-dotenv
-aiohttp

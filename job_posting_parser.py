@@ -394,8 +394,8 @@ def main():
     with db_handler.session.begin():
         messages_counter = web_vacancy_fetching(messages_counter)
     with db_handler.session.begin():
-        # parse_from_date = None
-        parse_from_date = datetime(2020, 1, 1)
+        parse_from_date = None
+        # parse_from_date = datetime(2020, 1, 1)
         messages_counter = web_vacancy_parsing(from_date=parse_from_date, messages_counter=messages_counter)
 
     print()
